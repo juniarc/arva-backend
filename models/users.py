@@ -7,27 +7,31 @@ from bcrypt import hashpw, gensalt, checkpw
 
 class User(db.Model):
     __tablename__ = "users"
-    user_id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    username = Column(String(80), unique=True, nullable=False)
-    email = Column(String(120), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    phone_number = Column(String(15), nullable=False)
-    address_street = Column(String(255), nullable=True)
-    city = Column(String(255), nullable=True)
-    state = Column(String(255), nullable=True)
-    zip_code = Column(String(255), nullable=True)
-    role = Column(String(255), nullable=False, default='user')
-    profile_image = Column(Text, nullable=True)
-    # shop_id = Column(Integer, ForeignKey('shop.shop_id'), nullable=True)
+    user_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(15), nullable=False)
+    address_street = db.Column(db.String(255), nullable=True)
+    address_province = db.Column(db.String(255), nullable=True)
+    address_city = db.Column(db.String(255), nullable=True)
+    address_district = db.Column(db.String(255), nullable=True)
+    address_subdistrict = db.Column(db.String(255), nullable=True)
+    zip_code = db.Column(db.String(255), nullable=True)
+    role = db.Column(db.String(255), nullable=False, default='user')
+    profile_image = db.Column(db.Text, nullable=True)
+    address_label = db.Column(db.String(80), nullable=True)
+    status = db.Column(db.String(20), nullable=True, server_default='active')
 
-    # shop = relationship("Shop", backref="users")
+
+    shop = relationship("Shop", back_populates="user", cascade="all, delete", lazy=True)
 
 
     def __repr__(self):
-        return f'<User {self.user_id} {self.username} {self.email} {self.role} {self.created_at}>'
+        return f'<User {self.user_id} {self.username} {self.email} {self.role}>'
     
     def get_id(self):
-        return (self.id)
+        return (self.user_id)
     
     def set_password(self, password):
         self.password = hashpw(password.encode('utf-8'), gensalt()).decode('utf-8')
@@ -44,10 +48,11 @@ class User(db.Model):
             'password': self.password,
             'phone_number': self.phone_number,
             'address_street': self.address_street,
-            'city': self.city,
-            'state': self.state,
+            'address_city': self.address_city,
+            'address_province': self.address_province,
+            'address_district': self.address_district,
+            'address_subdistrict': self.address_subdistrict,
             'zip_code': self.zip_code,
             'role': self.role,
-            # 'shop_id': self.shop_id,
             'profile_image': self.profile_image
         }
