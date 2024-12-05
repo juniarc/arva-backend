@@ -33,10 +33,10 @@ class Product(db.Model):
     # tag = relationship("Tag", secondary="product_tags_association", back_populates="product", lazy=True)
 
     #akses ke image
-    image = relationship("ImageProduct", back_populates="product", lazy=True)
+    image = relationship("ImageProduct", back_populates="product", cascade="all, delete", lazy=True)
 
     #akses ke variant
-    # variant = relationship("Variant", back_populates="product", lazy=True)
+    variant = relationship("Variant", back_populates="product", cascade="all, delete", lazy=True)
 
     def __repr__(self):
         return f'<Product {self.product_id} {self.product_name} {self.description}>'

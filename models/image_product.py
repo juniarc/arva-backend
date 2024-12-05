@@ -8,7 +8,7 @@ class ImageProduct(db.Model):
     __tablename__ = "image_products"
     image_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     image_data = db.Column(db.Text, nullable=False)
-    product_id = db.Column(db.Integer, ForeignKey('products.product_id'), nullable=False)
+    product_id = db.Column(db.Integer, ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False)
     
     product = relationship("Product", back_populates="image", lazy=True)
 

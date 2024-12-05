@@ -11,7 +11,7 @@ class Variant(db.Model):
     stock = db.Column(db.Integer, nullable=True)
     product_id = db.Column(db.Integer, ForeignKey('products.product_id'), nullable=False)
     
-    # product = relationship("Product", back_populates="variant", lazy=True)
+    product = relationship("Product", back_populates="variant", lazy=True)
 
     def __repr__(self):
         return f'<Variant {self.variant_id} {self.variant_name} {self.price} {self.stock} {self.product_id}>'

@@ -1,6 +1,6 @@
 from flask import jsonify, request, Blueprint
 from connector.db import db
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.image_product import ImageProduct
 from models.shops import Shop
 from models.products import Product
