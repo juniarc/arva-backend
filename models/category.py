@@ -7,12 +7,9 @@ class Category(db.Model):
     __tablename__ = "categories"
     category_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     category_name = db.Column(db.String(120), unique=True, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='active')
 
-    #akses ke table category_products
-    # product_category = relationship("CategoryProductAssociation", back_populates="category")
-
-    #akses ke table products
-    # product = relationship("Product", secondary="category_products_association", back_populates="category")
+    product = relationship("Product", back_populates= "category", lazy=True)
 
     def __repr__(self):
         return f"<Category {self.category_name} {self.category_id}>"
@@ -21,6 +18,7 @@ class Category(db.Model):
         return {
             'category_id': self.category_id,
             'category_name': self.category_name,
+            'category_status': self.status
         }
 
     

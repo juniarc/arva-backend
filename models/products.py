@@ -16,21 +16,17 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     status = db.Column(db.String(20), nullable=True, default='active')
     shop_id = db.Column(db.Integer, ForeignKey('shops.shop_id', ondelete='CASCADE'), nullable=False)
+    category_id = db.Column(db.Integer, ForeignKey('categories.category_id'), nullable=True)
 
     
     shop = relationship("Shop", back_populates="product", lazy=True)
 
-    #relasi ke CategoryProductAssociation
-    # category_product = relationship("CategoryProductAssociation", back_populates="product", lazy=True)
-
-    #akses langsung ke category
-    # category = relationship("Category", secondary="category_products_association", back_populates="product", lazy=True)
+    #relasi ke Category
+    category = relationship("Category", back_populates="product", lazy=True)
 
     #relasi ke TagProductAssociation
-    # tag_product = relationship("TagProductAssociation", back_populates="product", lazy=True)
+    # tag_product = relationship("TagProductAssociation", back_populates="product",cascade="all, delete", lazy=True)
     
-    #akses langsung ke tag
-    # tag = relationship("Tag", secondary="product_tags_association", back_populates="product", lazy=True)
 
     #akses ke image
     image = relationship("ImageProduct", back_populates="product", cascade="all, delete", lazy=True)
@@ -51,6 +47,7 @@ class Product(db.Model):
             'created_at': self.created_at,
             'status': self.status,
             'shop_id': self.shop_id,
+            'category_id': self.category_id
         }
     
     

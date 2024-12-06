@@ -1,6 +1,7 @@
 from flask import jsonify, request, Blueprint
 from models.products import Product
 from models.shops import Shop
+from models.category import Category
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from connector.db import db
 import datetime
@@ -49,13 +50,18 @@ def create_product():
     
     try:
         shop = db.session.query(Shop).filter_by(user_id=current_user_id).first()
+        category = db.session.query(Category).filter_by(category_id=data['category_id']).first()
+
         if shop is None:
             return jsonify({'error': 'Shop not found'}), 404
+        elif category is None:
+            return jsonify({'error': 'Category not found'}), 404
         new_product = Product(
             product_name=data['product_name'],
             price=data['price'],
             unit=data['unit'],
             stock=data['stock'],
+            category_id=data['category_id'],
             shop_id=shop.shop_id
         )
         db.session.add(new_product)
@@ -84,6 +90,7 @@ def update_product(product_id):
         product.price = data.get('price', product.price)
         product.unit = data.get('unit', product.unit)
         product.stock = data.get('stock', product.stock)
+        product.category_id = data.get('category_id', product.category_id)
         db.session.commit()
         return jsonify({'message': 'Product updated successfully'}), 200
     except Exception as e:
