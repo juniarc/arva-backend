@@ -47,6 +47,8 @@ def create_product():
         return jsonify({'error': 'Missing unit'}), 400
     elif 'stock' not in data:
         return jsonify({'error': 'Missing stock'}), 400
+    elif 'category_id' not in data:
+        return jsonify({'error': 'Missing category id'}), 400
     
     try:
         shop = db.session.query(Shop).filter_by(user_id=current_user_id).first()
@@ -68,6 +70,7 @@ def create_product():
         db.session.commit()
         return jsonify({'message': 'Product created successfully'}), 201
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to create product'}), 500
     
 
@@ -94,6 +97,7 @@ def update_product(product_id):
         db.session.commit()
         return jsonify({'message': 'Product updated successfully'}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to update product'}), 500
     
 
@@ -118,4 +122,5 @@ def deactivate_product(product_id):
         db.session.commit()
         return jsonify({'message': 'Product deactivated successfully'}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to deactivate product'}), 500

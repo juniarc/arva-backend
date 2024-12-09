@@ -9,12 +9,16 @@ from models.products import Product
 from models.image_product import ImageProduct
 from models.variant import Variant
 from models.category import Category
+from models.tags import Tag
+from models.tag_product import TagProductAssociation
 from controllers.shop_controllers import shop_bp
 from controllers.user_controllers import user_bp
 from controllers.product_controller import product_bp
 from controllers.image_product_controller import image_product_bp
 from controllers.variant_controller import variant_bp
 from controllers.category_controller import category_bp
+from controllers.tag_controller import tag_bp
+from controllers.tag_product_controller import tag_product_bp
 
 
 
@@ -24,7 +28,8 @@ app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = os.getenv('SECRET_KEY')  
 jwt = JWTManager(app)
 
-
+app.register_blueprint(tag_product_bp, url_prefix='/tag_product')
+app.register_blueprint(tag_bp, url_prefix='/tag')
 app.register_blueprint(category_bp, url_prefix='/category')
 app.register_blueprint(variant_bp, url_prefix='/variant')
 app.register_blueprint(image_product_bp, url_prefix='/image_product')

@@ -78,6 +78,7 @@ def create_shop(user_id):
         db.session.commit()
         return jsonify({'message': 'Shop created successfully'}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to create shop'}), 500
     
 
@@ -110,6 +111,7 @@ def update_shop(user_id):
         db.session.commit()
         return jsonify({'message': 'Shop updated successfully'}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': f'Failed to update shop {e}'}), 500
     
 
@@ -131,6 +133,7 @@ def update_shop(user_id):
 #         db.session.commit()
 #         return jsonify({'message': 'Shop deleted successfully'}), 200
 #     except Exception as e:
+#         db.session.rollback()
 #         return jsonify({'error': 'Failed to delete shop'}), 500
 
 @shop_bp.route('/<int:user_id>/deactivate', methods=['PUT'])
@@ -158,6 +161,7 @@ def deactivate_shop(user_id):
             db.session.commit()
             return jsonify({'message': 'Shop deactivated successfully'}), 200
         except Exception as e:
+            db.session.rollback()
             return jsonify({'error': 'Failed to deactivate shop'}), 500
     return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401                                           
 

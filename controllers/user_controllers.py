@@ -151,6 +151,7 @@ def delete_user(user_id):
             db.session.commit()
             return jsonify({'message': 'User deleted successfully'}), 200
         except Exception as e:
+            db.session.rollback()
             return jsonify({'error': 'Failed to delete user'}), 500
     return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
 
@@ -182,6 +183,7 @@ def change_password(user_id):
         else:
             return jsonify({'error': 'Incorrect old password'}), 401
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to change password'}), 500
     
 

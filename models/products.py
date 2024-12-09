@@ -25,7 +25,7 @@ class Product(db.Model):
     category = relationship("Category", back_populates="product", lazy=True)
 
     #relasi ke TagProductAssociation
-    # tag_product = relationship("TagProductAssociation", back_populates="product",cascade="all, delete", lazy=True)
+    tag_product = relationship("TagProductAssociation", back_populates="product",cascade="all, delete", lazy=True)
     
 
     #akses ke image
