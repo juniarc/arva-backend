@@ -3,14 +3,6 @@ from connector.db import db
 from flask_migrate import Migrate
 import os
 from flask_jwt_extended import JWTManager
-from models.shops import Shop
-from models.users import User
-from models.products import Product
-from models.image_product import ImageProduct
-from models.variant import Variant
-from models.category import Category
-from models.tags import Tag
-from models.tag_product import TagProductAssociation
 from controllers.shop_controllers import shop_bp
 from controllers.user_controllers import user_bp
 from controllers.product_controller import product_bp
@@ -19,7 +11,9 @@ from controllers.variant_controller import variant_bp
 from controllers.category_controller import category_bp
 from controllers.tag_controller import tag_bp
 from controllers.tag_product_controller import tag_product_bp
-
+from controllers.discount_controller import discount_bp
+from controllers.order_controller import order_bp
+from controllers.orderItem_controller import orderItem_Bp
 
 
 app = Flask(__name__)
@@ -36,6 +30,12 @@ app.register_blueprint(image_product_bp, url_prefix='/image_product')
 app.register_blueprint(product_bp, url_prefix='/product')
 app.register_blueprint(shop_bp, url_prefix='/shop')
 app.register_blueprint(user_bp, url_prefix='/user')
+app.register_blueprint(discount_bp, url_prefix='/discount')
+app.register_blueprint(order_bp, url_prefix='/order')
+app.register_blueprint(orderItem_Bp, url_prefix='/orderitem')
+
+
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("POSTGRES_CONNECTION_STRING")
 if not app.config['SQLALCHEMY_DATABASE_URI']:

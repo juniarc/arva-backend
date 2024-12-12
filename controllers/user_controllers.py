@@ -56,7 +56,7 @@ def login():
         if not user.check_password(data['password']):
             return jsonify({'error': 'Incorrect password'}), 401
         if user and user.check_password(data['password']):
-            expires = datetime.timedelta(minutes=60)
+            expires = datetime.timedelta(days=1)
             access_token = create_access_token(identity=user_id, additional_claims={
                 'username': user.username,
                 'email': user.email,

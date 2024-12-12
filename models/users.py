@@ -1,6 +1,7 @@
 from connector.db import db
 from sqlalchemy import Column, Integer, String, Boolean ,ForeignKey, Text
 from sqlalchemy.orm import relationship
+from models.order import Order
 from bcrypt import hashpw, gensalt, checkpw
 
 
@@ -25,6 +26,8 @@ class User(db.Model):
 
 
     shop = relationship("Shop", back_populates="user", cascade="all, delete", lazy=True)
+
+    order = relationship("Order", back_populates="user", lazy=True)
 
 
     def __repr__(self):

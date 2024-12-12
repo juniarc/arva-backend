@@ -9,6 +9,7 @@ class Variant(db.Model):
     variant_name = db.Column(db.String(120), unique=True, nullable=False)
     price = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=True)
+    unit = db.Column(db.String(120), nullable=False, server_default='kg')
     product_id = db.Column(db.Integer, ForeignKey('products.product_id'), nullable=False)
     
     product = relationship("Product", back_populates="variant", lazy=True)
@@ -22,5 +23,7 @@ class Variant(db.Model):
             'variant_name': self.variant_name,
             'price': self.price,
             'stock': self.stock,
+            'unit': self.unit,
             'product_id': self.product_id,
         }
+    
