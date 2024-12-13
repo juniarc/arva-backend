@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 class Discount(db.Model):
     __tablename__ = "discounts"
     discount_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    discount_name = db.Column(db.String(120), unique=True, nullable=False)
+    discount_name = db.Column(db.String(120), nullable=False)
     discount_type = db.Column(db.String(120), nullable=False)
     discount_value = db.Column(db.Integer, nullable=False)
     start_date = db.Column(db.DateTime(timezone=True), nullable=False)

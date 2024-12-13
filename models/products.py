@@ -12,7 +12,7 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     category_id = db.Column(db.Integer, ForeignKey('categories.category_id'), nullable=True)
     product_type = db.Column(db.String(20), nullable=True)
-    shipping_cost = db.Column(db.Integer, nullable=True)
+    shipping_cost = db.Column(db.Integer, nullable=True, default=0)
     sold = db.Column(db.Integer, nullable=True, default=0)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     status = db.Column(db.String(20), nullable=True, default='active')
@@ -39,8 +39,12 @@ class Product(db.Model):
     #relasi ke diskon
     discount = relationship("Discount", back_populates="product", cascade="all, delete", lazy=True)
 
-    #relaasi ke order item
+    #relasi ke order item
     order_item = relationship("OrderItem", back_populates="product", lazy=True)
+
+    #relasi ke rating
+    # rating = relationship("Rating", back_populates="product", cascade="all, delete", lazy=True)
+
 
     def __repr__(self):
         return f'<Product {self.product_id} {self.product_name} {self.description} {self.category_id} {self.product_type} {self.shipping_cost} {self.sold} {self.created_at} {self.status} {self.shop_id}>'

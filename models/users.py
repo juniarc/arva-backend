@@ -27,8 +27,11 @@ class User(db.Model):
 
     shop = relationship("Shop", back_populates="user", cascade="all, delete", lazy=True)
 
-    order = relationship("Order", back_populates="user", lazy=True)
+    order = relationship("Order", back_populates="user",cascade="all, delete", lazy=True)
 
+    # cart =relationship("Cart", back_populates="user",cascade="all, delete", lazy=True)
+
+    # rating = relationship("Rating", back_populates="user", cascade="all, delete", lazy=True)
 
     def __repr__(self):
         return f'<User {self.user_id} {self.username} {self.email} {self.role}>'

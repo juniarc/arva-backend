@@ -5,6 +5,7 @@ from models.category import Category
 from models.variant import Variant
 from models.image_product import ImageProduct
 from models.tag_product import TagProductAssociation
+from models.discount import Discount
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from connector.db import db
 import datetime
@@ -120,7 +121,10 @@ def deactivate_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to deactivate product'}), 500
-    
+
+
+
+
 @product_bp.route('/getreqproductdetail/<int:product_id>', methods=['GET'])
 def get_request_product(product_id):
 
@@ -133,10 +137,17 @@ def get_request_product(product_id):
         shop_address_city = product.shop.shop_address_city
         tag_product = db.session.query(TagProductAssociation).filter_by(product_id=product_id).all()
         shop = product.shop
+        discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+
 
         variants = []
         images = []
         tags = []
+        discount_list =[]
+
+        for discount in discounts:
+            discount_list.append(discount.to_dict())
+        
 
         if image_product:
             for image in image_product:
@@ -153,7 +164,8 @@ def get_request_product(product_id):
                     'variant_id': v.variant_id,
                     'variant_name': v.variant_name,
                     'variant_price': v.price,
-                    'variant_stock': v.stock
+                    'variant_stock': v.stock,
+                    'variant_unit': v.unit
                 }
                 variants.append(v)
 
@@ -175,6 +187,7 @@ def get_request_product(product_id):
             'image': images,
             'variant': variants,
             'tag': tags,
+            'discount': discount_list,
             # 'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
             'shop':shop.to_dict()
             }), 200
@@ -196,11 +209,16 @@ def get_request_allproduct():
             image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
+            discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
            
-
+            discount_list =[]
             variants = []
             images = []
             tags = []
+
+            for discount in discounts:
+                discount_list.append(discount.to_dict())
+
             if image_product:
                 for image in image_product:
                     # image = {
@@ -216,7 +234,8 @@ def get_request_allproduct():
                         'variant_id': v.variant_id,
                         'variant_name': v.variant_name,
                         'variant_price': v.price,
-                        'variant_stock': v.stock
+                        'variant_stock': v.stock,
+                        'variant_unit': v.unit
                     }
                     variants.append(v)
 
@@ -231,7 +250,8 @@ def get_request_allproduct():
                 'status': product.status,
                 'category': category_name,
                 'image': images,
-                'variant': variants, 
+                'variant': variants,
+                'discount': discount_list,
                 'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
             })
 

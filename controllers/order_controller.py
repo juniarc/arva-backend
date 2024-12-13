@@ -34,15 +34,12 @@ def get_order_by_user_id(user_id):
         return jsonify([order.to_dict() for order in orders]), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get order by user id'}), 500
-    
+
+
 @order_bp.route('/createorder', methods=['POST'])
 @jwt_required()
 def create_order():
-    data = request.get_json()
     current_user_id = int(get_jwt_identity())
-
-    if data is None:
-        return jsonify({'error': "No data Provided"})
     
     try:
         user = db.session.query(User).filter_by(user_id=current_user_id).first()
@@ -60,7 +57,7 @@ def create_order():
 @jwt_required()
 def update_order(order_id):
     data = request.get_json()
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
 
     if data is None:
         return jsonify({'error': 'No data Provided'}), 400
@@ -83,7 +80,7 @@ def update_order(order_id):
 @jwt_required()
 def delete_order(order_id):
 
-    current_useer_id = get_jwt_identity()
+    current_useer_id = int(get_jwt_identity())
 
     try:
         order = db.session.query(Order).filter_by(order_id=order_id).first()

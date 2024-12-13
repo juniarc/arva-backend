@@ -3,12 +3,13 @@ from connector.db import db
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.discount import Discount
 from models.products import Product
+from models.variant import Variant
 from datetime import datetime
 
 discount_bp = Blueprint('discount_controller', __name__)
 
 
-@discount_bp.route('/getdiscount/<int:discount_id>', methods=['GET'])
+@discount_bp.route('/discountbydiscountid/<int:discount_id>', methods=['GET'])
 def get_discount(discount_id):
     try:
         discount = db.session.query(Discount).filter_by(discount_id=discount_id).first()
@@ -18,7 +19,7 @@ def get_discount(discount_id):
     except Exception as e:
         return jsonify({'error': 'Failed to get discount'}), 500
     
-@discount_bp.route('/getdiscountbyproduct/<int:product_id>', methods=['GET'])
+@discount_bp.route('/discountbyproductid/<int:product_id>', methods=['GET'])
 def get_discount_by_product(product_id):
     try:
         discount = db.session.query(Discount).filter_by(product_id=product_id).first()
@@ -27,13 +28,21 @@ def get_discount_by_product(product_id):
         return jsonify(discount.to_dict()), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get discount'}), 500
+    
+@discount_bp.route('/alldiscounts', methods=['GET'])
+def get_all_discounts():
+    try:
+        discounts = db.session.query(Discount).all()
+        return jsonify([discount.to_dict() for discount in discounts]), 200
+    except Exception as e:
+        return jsonify({'error': 'Failed to get all discounts'}), 500
 
 
 @discount_bp.route('/creatediscount/<int:product_id>', methods=['POST'])
 @jwt_required()
 def create_discount(product_id):
     data = request.get_json()
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     allowed_type =['percentage', 'fixed']
     start_date = datetime.fromisoformat(data['start_date'])
     end_date = datetime.fromisoformat(data['end_date'])
@@ -59,11 +68,14 @@ def create_discount(product_id):
 
     try:
         product = db.session.query(Product).filter_by(product_id=product_id).first()
+        variant = db.session.query(Variant).filter_by(product_id=product_id).all()
+        min_price = min(variant, key=lambda x: x.price).price
+
         if product is None:
             return jsonify({'error': 'Product not found'}), 404
         if product.shop.user_id != current_user_id:
             return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
-        if data['discount_type'] == 'fixed' and data['discount_value'] > product.price:
+        if data['discount_type'] == 'fixed' and data['discount_value'] > min_price:
             return jsonify({'error': 'Discount value must be less than or equal to product price for fixed discount'}), 400
 
         new_discount = Discount(
@@ -79,14 +91,14 @@ def create_discount(product_id):
         return jsonify({'message': 'Discount created successfully'}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Failed to create discount'}), 500
+        return jsonify({'error': f'Failed to create discount {e}'}), 500
     
 
 @discount_bp.route('/updatediscount/<int:discount_id>', methods=['PUT'])
 @jwt_required()
 def update_discount(discount_id):
     data = request.get_json()
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     allowed_type =['percentage', 'fixed']
     start_date = datetime.fromisoformat(data['start_date'])
     end_date = datetime.fromisoformat(data['end_date'])
@@ -106,11 +118,14 @@ def update_discount(discount_id):
     try:
         discount = db.session.query(Discount).filter_by(discount_id=discount_id).first()
         product = db.session.query(Product).filter_by(product_id=discount.product_id).first()
+        variant = db.session.query(Variant).filter_by(product_id=product.product_id).all()
+        min_price = min(variant, key=lambda x: x.price).price
+
         if discount is None:
             return jsonify({'error': 'Discount not found'}), 404
         if product.shop.user_id != current_user_id:
             return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
-        if data['discount_type'] == 'fixed' and data['discount_value'] > product.price:
+        if data['discount_type'] == 'fixed' and data['discount_value'] > min_price:
             return jsonify({'error': 'Discount value must be less than or equal to product price for fixed discount'}), 400
 
         discount.discount_name = data.get('discount_name', discount.discount_name)
@@ -128,7 +143,7 @@ def update_discount(discount_id):
 @discount_bp.route('/deletediscount/<int:discount_id>', methods=['DELETE'])
 @jwt_required()
 def delete_discount(discount_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
 
     try:
         discount = db.session.query(Discount).filter_by(discount_id=discount_id).first()

@@ -15,6 +15,8 @@ class Order(db.Model):
 
     user = relationship("User", back_populates="order", lazy=True)
 
+    # rating = relationship("Rating", back_populates="order", cascade="all, delete", lazy=True)
+
     #relasi ke order item
     order_item = relationship("OrderItem", back_populates="order", lazy=True)
 

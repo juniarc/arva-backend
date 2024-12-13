@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 class OrderItem(db.Model):
     __tablename__ = 'orderitem'
     orderitem_id= db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    order_id= db.Column(db.Integer, ForeignKey('orders.order_id'), nullable=False)
+    order_id= db.Column(db.Integer, ForeignKey('orders.order_id'),  nullable=False)
     product_id= db.Column(db.Integer, ForeignKey('products.product_id'), nullable=False)
     quantity= db.Column(db.Integer, nullable=False)
     unit_price= db.Column(db.Integer, nullable=False)
