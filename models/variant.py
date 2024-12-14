@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 class Variant(db.Model):
     __tablename__ = "variants"
     variant_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    variant_name = db.Column(db.String(120), unique=True, nullable=False)
+    variant_name = db.Column(db.String(120), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=True)
     unit = db.Column(db.String(120), nullable=False, server_default='kg')

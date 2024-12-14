@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 class Product(db.Model):
     __tablename__= "products"
     product_id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    product_name = db.Column(db.String(120), unique=True, nullable=False)
+    product_name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text, nullable=True)
     category_id = db.Column(db.Integer, ForeignKey('categories.category_id'), nullable=True)
     product_type = db.Column(db.String(20), nullable=True)
