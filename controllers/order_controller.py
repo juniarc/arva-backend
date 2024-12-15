@@ -14,7 +14,7 @@ def get_all_order():
         orders = db.session.query(Order).all()
         return jsonify([order.to_dict() for order in orders]), 200
     except Exception as e:
-        return jsonify({'error': 'Failed to get all orders'}), 500
+        return jsonify({'error': f'Failed to get all orders {e}'}), 500
 
 
 @order_bp.route('/getorder/<int:order_id>', methods=['GET'])
@@ -94,3 +94,20 @@ def delete_order(order_id):
         return jsonify({'error': 'Failed to delete order'}), 500
 
 
+@order_bp.route('/checkoutorder/<int:order_id>', methods=['PUT'])
+@jwt_required()
+def checkout_order(order_id):
+    current_user_id = int(get_jwt_identity())
+
+    try:
+        order = db.session.query(Order).filter_by(order_id=order_id).first()
+        if order is None:
+            return jsonify({'error': 'Order not found'}), 404
+        elif order.user_id != current_user_id:
+            return jsonify({'error': 'Unauthorized: Insufficient permission'}), 401
+        order.status = 'completed'
+        db.session.commit()
+        return jsonify({'message': 'Order checkout successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to checkout order'}), 500

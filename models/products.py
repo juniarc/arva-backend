@@ -40,10 +40,15 @@ class Product(db.Model):
     discount = relationship("Discount", back_populates="product", cascade="all, delete", lazy=True)
 
     #relasi ke order item
-    order_item = relationship("OrderItem", back_populates="product", lazy=True)
+    order_item = relationship("OrderItem", back_populates="product", cascade="all, delete", lazy=True)
 
+    #relasi ke cart
+    cart = relationship("Cart", back_populates="product", cascade="all, delete", lazy=True)
+    
     #relasi ke rating
-    # rating = relationship("Rating", back_populates="product", cascade="all, delete", lazy=True)
+    rating = relationship("Rating", back_populates="product", cascade="all, delete", lazy=True)
+
+
 
 
     def __repr__(self):

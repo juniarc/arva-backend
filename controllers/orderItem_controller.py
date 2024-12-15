@@ -65,6 +65,7 @@ def create_order_item(order_id):
         variant = db.session.query(Variant).filter_by(variant_id=data['variant_id']).first()
         order = db.session.query(Order).filter_by(order_id=order_id).first()
         discounts = db.session.query(Discount).filter_by(product_id=data['product_id']).all()
+        shippingCost = product.shipping_cost
         
         if user is None:
             return jsonify({'error': 'Unauthorizhed: User not found'}), 404
@@ -99,16 +100,24 @@ def create_order_item(order_id):
             product_id=product.product_id, 
             quantity=quantity, 
             unit_price= price,
-            total_price = (price - discount_product) * quantity 
+            total_price = (price - discount_product + shippingCost ) * quantity 
             )
 
         variant.stock -= quantity
         product.sold += quantity
         order.total_amount += orderItem.total_price
+        total_shipping_cost = shippingCost * quantity
 
         db.session.add(orderItem)
         db.session.commit()
-        return jsonify(orderItem.to_dict()), 201
+        return jsonify({'message': 'Order item created successfully',
+                        'order_id': orderItem.order_id,
+                        'product_id': orderItem.product_id,
+                        'quantity': orderItem.quantity,
+                        'unit_price': orderItem.unit_price,
+                        'total_price': orderItem.total_price,
+                        'total_discount_per_product': discount_product,
+                        'total_shipping_cost': total_shipping_cost}), 201
     except Exception as e:
         db.session.rollback()
         print(e)
@@ -139,6 +148,7 @@ def create_order_and_order_item():
         product = db.session.query(Product).filter_by(product_id=data['product_id']).first()
         variant = db.session.query(Variant).filter_by(variant_id=data['variant_id']).first()
         discounts = db.session.query(Discount).filter_by(product_id=data['product_id']).all()
+        shippingCost = product.shipping_cost
 
         if user is None:
             return jsonify({'error': 'Unauthorizhed: User not found'}), 404
@@ -148,10 +158,12 @@ def create_order_and_order_item():
             return jsonify({'error': 'Variant not found'}), 404
 
         quantity = int(data['quantity'])
+
         if variant.stock < quantity:
             return jsonify({'error': 'Insufficient stock'}), 400
 
         price = variant.price
+
         if price is None:
             return jsonify({'error': 'Price for variant is not set'}), 400
         if discounts:
@@ -172,17 +184,26 @@ def create_order_and_order_item():
             product_id=product.product_id,
             quantity=quantity,
             unit_price=price,
-            total_price= (price - discount_product) * quantity
+            total_price= (price - discount_product + shippingCost) * quantity
         )
 
         variant.stock -= quantity
         product.sold += quantity
         order.total_amount += orderItem.total_price
+        total_shipping_cost = shippingCost * quantity
         
         db.session.add(orderItem)
         db.session.commit()
 
-        return jsonify(orderItem.to_dict()), 201
+        return jsonify({'message': 'Order and order item created successfully',
+                        'order_id': orderItem.order_id,
+                        'product_id': orderItem.product_id,
+                        'quantity': orderItem.quantity,
+                        'unit_price': orderItem.unit_price,
+                        'total_price': orderItem.total_price,
+                        'total_discount_per_product': discount_product,
+                        'total_shipping_cost': total_shipping_cost
+                        }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to create order and order item {e}'}), 500

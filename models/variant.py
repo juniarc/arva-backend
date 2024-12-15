@@ -10,9 +10,11 @@ class Variant(db.Model):
     price = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=True)
     unit = db.Column(db.String(120), nullable=False, server_default='kg')
-    product_id = db.Column(db.Integer, ForeignKey('products.product_id'), nullable=False)
+    product_id = db.Column(db.Integer, ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False)
     
     product = relationship("Product", back_populates="variant", lazy=True)
+
+    cart = relationship("Cart", back_populates="variant", cascade="all, delete", lazy=True)
 
     def __repr__(self):
         return f'<Variant {self.variant_id} {self.variant_name} {self.price} {self.stock} {self.product_id}>'
