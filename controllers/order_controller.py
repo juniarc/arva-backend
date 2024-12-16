@@ -43,12 +43,12 @@ def create_order():
     
     try:
         user = db.session.query(User).filter_by(user_id=current_user_id).first()
-        if user is None:
+        if user is None or user.status != 'active':
             return jsonify({'error': 'User Not Found'}), 401
         order = Order(user_id= current_user_id)
         db.session.add(order)
         db.session.commit()
-        return jsonify({'message': 'Order created succesfully'}), 201
+        return jsonify({'message': 'Order created succesfully','order_id': order.order_id}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to create order'}), 500

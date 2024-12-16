@@ -19,6 +19,9 @@ class Shop(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     user_id = db.Column(db.Integer, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     status = db.Column(db.String(20), nullable=False)
+    shop_email  = db.Column(db.String(120), nullable=True)
+    shop_phone_number = db.Column(db.String(15), nullable=True)
+    shop_zip_code = db.Column(db.String(255), nullable=True)
 
 
     user = relationship("User", back_populates="shop", lazy=True)
@@ -43,6 +46,9 @@ class Shop(db.Model):
             'created_at': self.created_at,
             'user_id': self.user_id,
             'status': self.status,
+            'shop_email': self.shop_email,
+            'shop_phone_number': self.shop_phone_number,
+            'shop_zip_code': self.shop_zip_code
         }
 
 

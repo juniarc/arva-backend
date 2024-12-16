@@ -6,6 +6,7 @@ from models.variant import Variant
 from models.image_product import ImageProduct
 from models.tag_product import TagProductAssociation
 from models.discount import Discount
+from models.rating import Rating
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from sqlalchemy.exc import SQLAlchemyError
 from connector.db import db
@@ -145,6 +146,7 @@ def get_request_product(product_id):
         tag_product = db.session.query(TagProductAssociation).filter_by(product_id=product_id).all()
         shop = product.shop
         discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+        ratings = db.session.query(db.func.avg(Rating.rating)).filter_by(product_id=product.product_id).scalar()
 
 
         variants = []
@@ -194,6 +196,7 @@ def get_request_product(product_id):
             'image': images,
             'variant': variants,
             'tag': tags,
+            'ratings': ratings,
             'discount': discount_list,
             # 'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
             'shop':shop.to_dict()
@@ -217,6 +220,7 @@ def get_request_allproduct():
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
             discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+            ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
            
             discount_list =[]
             variants = []
@@ -259,7 +263,8 @@ def get_request_allproduct():
                 'image': images,
                 'variant': variants,
                 'discount': discount_list,
-                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
+                'ratings': ratings,
+                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city, 'shop_name':product.shop.shop_name},
             })
 
         return jsonify( product_list), 200
@@ -281,6 +286,7 @@ def get_product_by_category(category_id):
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
             discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+            ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
            
             discount_list =[]
             variants = []
@@ -323,7 +329,8 @@ def get_product_by_category(category_id):
                 'image': images,
                 'variant': variants,
                 'discount': discount_list,
-                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
+                'ratings': ratings,
+                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city, 'shop_name':product.shop.shop_name},
             })
 
         return jsonify( product_list), 200
@@ -345,6 +352,7 @@ def get_product_by_shop(shop_id):
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
             discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+            ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
            
             discount_list =[]
             variants = []
@@ -386,6 +394,7 @@ def get_product_by_shop(shop_id):
                 'category': category_name,
                 'image': images,
                 'variant': variants,
+                'ratings': ratings,
                 'discount': discount_list,
                 'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
             })
@@ -486,3 +495,60 @@ def create_new_product():
         return jsonify({"error": str(e)}), 500
 
 
+
+@product_bp.route('/searchproduct/<string:product_name>', methods=['GET'])
+def search_product_by_name(product_name):
+    try:
+        products = db.session.query(Product).filter(Product.product_name.ilike(f'%{product_name}%')).all()
+        product_list = []
+
+        for product in products:
+            category_name = product.category.category_name
+            variant = db.session.query(Variant).filter_by(product_id=product.product_id).all()
+            image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
+            shop_id = product.shop.shop_id
+            shop_address_city = product.shop.shop_address_city
+            discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+           
+            discount_list =[]
+            variants = []
+            images = []
+            tags = []
+
+            for discount in discounts:
+                discount_list.append(discount.to_dict())
+
+            if image_product:
+                for image in image_product:
+                    # image = {
+                    #     'image_id': image.image_id,
+                    #     'image_data': image.image_data
+                    # }
+                    image = image.image_data
+                    images.append(image)
+            
+            if variant:
+                for var in variant:
+                    variants.append(var.to_dict())
+
+            product_list.append({
+                'product_id': product.product_id,
+                'product_name': product.product_name,
+                'description': product.description,
+                'category_id': product.category_id,
+                'category_name': category_name,
+                'product_type': product.product_type,
+                'shipping_cost': product.shipping_cost,
+                'shop_id': shop_id,
+                'shop_address_city': shop_address_city,
+                'variants': variants,
+                'images': images,
+                'discounts': discount_list,
+                'tags': tags
+            })
+
+        return jsonify(product_list), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f'Failed to get products {e}'}), 500

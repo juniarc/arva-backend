@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from connector.db import db
 from flask_migrate import Migrate
 import os
@@ -18,6 +19,7 @@ from controllers.cart_controller import cart_bp
 from controllers.rating_controller import rating_bp
 
 app = Flask(__name__)
+CORS(app)
 
 
 app.config['JWT_SECRET_KEY'] = os.getenv('SECRET_KEY')  
