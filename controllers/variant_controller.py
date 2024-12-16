@@ -40,15 +40,17 @@ def get_all_variant():
 def create_variant(product_id):
     data = request.get_json()
     current_user_id = int(get_jwt_identity())
+    require_fields = ['variant_name', 'price', 'stock', 'unit']
 
     if data is None:
         return jsonify({'error': 'No data provided'}), 400
-    elif 'variant_name' not in data:
-        return jsonify({'error': 'Missing variant name'}), 400
-    elif 'price' not in data:
-        return jsonify({'error': 'Missing price'}), 400
-    elif 'stock' not in data:
-        return jsonify({'error': 'Missing stock'}), 400
+    
+    for field in require_fields:
+        if field not in data:
+            return jsonify({'error': f'Missing field: {field}'}), 400
+        elif not data[field] or str(data[field]).strip() == "":
+            return jsonify({'error': f'{field} cannot be empty'}), 400
+
     
     try:
         product = db.session.query(Product).filter_by(product_id=product_id).first()
@@ -60,6 +62,7 @@ def create_variant(product_id):
             variant_name=data['variant_name'],
             price=data['price'],
             stock=data['stock'],
+            unit=data['unit'],
             product_id=product_id
         )
         db.session.add(new_variant)
@@ -87,6 +90,7 @@ def update_variant(variant_id):
         variant.variant_name = data.get('variant_name', variant.variant_name)
         variant.price = data.get('price', variant.price)
         variant.stock = data.get('stock', variant.stock)
+        variant.unit = data.get('unit', variant.unit)
         db.session.commit()
         return jsonify({'message': 'Variant updated successfully'}), 200
     except Exception as e:

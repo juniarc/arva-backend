@@ -63,7 +63,8 @@ def login():
                 'role': user.role}, expires_delta=expires)
 
             return jsonify({'message': f'User {user.username} Logged in successfully',
-                'access_token': access_token}), 200
+                'access_token': access_token,
+                'user_id': user_id}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to login {e}'}), 500
         
