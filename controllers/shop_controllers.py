@@ -21,7 +21,7 @@ def get_shop(user_id):
             if shop is None:
                 return jsonify({'error': 'Shop not found'}), 404
             if shop.status != 'active':
-                return jsonify({'error':'Shop is not actived'})
+                return jsonify({'error':'Shop is not actived'}), 400
             return jsonify(shop.to_dict()), 200
         except Exception as e:
             return jsonify({'error': 'Failed to get shop'}), 500
@@ -33,6 +33,8 @@ def get_shop_by_id(shop_id):
         shop = db.session.query(Shop).filter_by(shop_id=shop_id).first()
         if shop is None:
             return jsonify({'error': 'Shop not found'}), 404
+        elif shop.status != 'active':
+            return jsonify({'error':'Shop is not actived'}), 400
         return jsonify(shop.to_dict()), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get shop'}), 500
@@ -96,7 +98,7 @@ def create_shop(user_id):
         return jsonify({'message': 'Shop created successfully', 'shop': new_shop.to_dict()}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Failed to create shop'}), 500
+        return jsonify({'error': f'Failed to create shop {e}'}), 500
     
 
 @shop_bp.route('/<int:user_id>', methods=['PUT'])

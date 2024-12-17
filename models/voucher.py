@@ -13,7 +13,8 @@ class Voucher(db.Model):
     start_date = db.Column(db.DateTime(timezone=True), nullable=False)
     end_date = db.Column(db.DateTime(timezone=True), nullable=False)
     shop_id = db.Column(db.Integer, ForeignKey('shops.shop_id', ondelete='CASCADE'), nullable=False)
-    shop = relationship("Shop", back_populates="voucher", lazy=True)
+    
+    # shop = relationship("Shop", back_populates="voucher", lazy=True)
     
 
     def __repr__(self):

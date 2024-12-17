@@ -146,7 +146,7 @@ def get_request_product(product_id):
         tag_product = db.session.query(TagProductAssociation).filter_by(product_id=product_id).all()
         shop = product.shop
         discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
-        ratings = db.session.query(db.func.avg(Rating.rating)).filter_by(product_id=product.product_id).scalar()
+        ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
 
 
         variants = []
