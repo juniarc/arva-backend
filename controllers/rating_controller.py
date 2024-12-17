@@ -28,6 +28,32 @@ def get_rating_by_product(product_id):
         return jsonify({"rating": ratings}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get rating {e}'}), 500
+    
+@rating_bp.route('/getallratingbyproduct/<int:product_id>', methods=['GET'])
+def get_allrating_by_product(product_id):
+    try: 
+        ratings = db.session.query(Rating).filter_by(product_id=product_id).all()
+
+        rating_list=[]
+
+        for element in ratings:
+            user = db.session.query(User).filter_by(user_id=element.user_id).first()
+
+            rating = {
+                "rating_id": element.rating_id,
+                "user_id": element.user_id,
+                "username": user.username,
+                "profile_image": user.profile_image,
+                "product_id": element.product_id,
+                "rating_product": element.rating_product,
+                "created_at": element.created_at,
+                "review": element.review
+            }
+            rating_list.append(rating)
+
+        return jsonify(rating_list), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get rating {e}'}), 500
 
 
 @rating_bp.route('/getratingbyuser/<int:user_id>', methods=['GET'])

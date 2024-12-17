@@ -25,16 +25,16 @@ def get_voucher(voucher_id):
             return jsonify({'error': 'Voucher not found'}), 404
         return jsonify(voucher.to_dict()), 200
     except Exception as e:
-        return jsonify({'error': 'Failed to get voucher'}), 500
+        return jsonify({'error': f'Failed to get voucher {e}'}), 500
     
 @voucher_bp.route('/getvouchershop/<int:shop_id>', methods=['GET'])
 def get_voucher_shop(shop_id):
     try:
-        vouchers = db.session.query(Voucher).filter(shop_id=shop_id).all()
+        vouchers = db.session.query(Voucher).filter_by(shop_id=shop_id).all()
 
         return jsonify([voucher.to_dict() for voucher in vouchers]), 200
     except Exception as e:
-        return jsonify({'error': 'Failed to get voucher'}), 500
+        return jsonify({'error': f'Failed to get voucher {e}'}), 500
     
 @voucher_bp.route('/createvoucher', methods=['POST'])
 @jwt_required()
@@ -42,7 +42,7 @@ def create_voucher():
     data = request.get_json()
     current_user_id = int(get_jwt_identity())
     allowed_type =['percentage', 'fixed']
-    required_fields = ['voucher_name', 'voucher_type', 'voucher_value', 'start_date', 'end_date', 'shop_id']
+    required_fields = ['voucher_name', 'voucher_type', 'voucher_value', 'start_date', 'end_date']
     
     if data is None:
         return jsonify({'error': 'No data provided'}), 400
@@ -67,11 +67,12 @@ def create_voucher():
         voucher_value = data.get('voucher_value')
         start_date = datetime.fromisoformat(data['start_date'])
         end_date = datetime.fromisoformat(data['end_date'])
-        shop_id = data.get('shop_id')
-        shop = db.session.query(Shop).filter_by(shop_id=shop_id).first()
+        
+        shop = db.session.query(Shop).filter_by(user_id=current_user_id).first()
+        shop_id = shop.shop_id
         
         if shop is None or shop.status != 'active':
-            return jsonify({'error': 'Shop not found'}), 404
+            return jsonify({'error': 'Shop not found or active'}), 404
         elif shop.user_id != current_user_id:
             return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
         elif start_date >= end_date:
@@ -92,8 +93,7 @@ def update_voucher(voucher_id):
     data = request.get_json()
     current_user_id = int(get_jwt_identity())
     allowed_type =['percentage', 'fixed']
-    voucher_type = data.get('voucher_type', voucher.voucher_type)
-    voucher_value = data.get('voucher_value', voucher.voucher_value)
+
     
 
     if data is None:
@@ -102,6 +102,8 @@ def update_voucher(voucher_id):
 
     try:
         voucher = db.session.query(Voucher).filter_by(voucher_id=voucher_id).first()
+        voucher_type = data.get('voucher_type', voucher.voucher_type)
+        voucher_value = data.get('voucher_value', voucher.voucher_value)
 
         if voucher is None:
             return jsonify({'error': 'Voucher not found'}), 404

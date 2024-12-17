@@ -29,5 +29,6 @@ class Cart(db.Model):
             "user_id": self.user_id,
             "product_id": self.product_id,
             "quantity": self.quantity,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            "variant_id": self.variant_id
         }

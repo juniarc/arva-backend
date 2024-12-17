@@ -28,7 +28,7 @@ class Shop(db.Model):
 
     product = relationship("Product", back_populates="shop", cascade="all, delete", lazy=True)
 
-    # voucher = relationship("Voucher", back_populates="shop", cascade="all, delete", lazy=True)
+    voucher = relationship("Voucher", back_populates="shop", cascade="all, delete", lazy=True)
 
     def __repr__(self):
         return f'<Shop {self.shop_id} {self.shop_name} {self.description} {self.created_at}>'

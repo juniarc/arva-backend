@@ -17,6 +17,7 @@ from controllers.order_controller import order_bp
 from controllers.orderItem_controller import orderItem_Bp
 from controllers.cart_controller import cart_bp
 from controllers.rating_controller import rating_bp
+from controllers.voucher_controller import voucher_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -38,6 +39,7 @@ app.register_blueprint(order_bp, url_prefix='/order')
 app.register_blueprint(orderItem_Bp, url_prefix='/orderitem')
 app.register_blueprint(cart_bp, url_prefix='/cart')
 app.register_blueprint(rating_bp, url_prefix='/rating')
+app.register_blueprint(voucher_bp, url_prefix='/voucher')
 
 
 
