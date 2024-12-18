@@ -106,8 +106,6 @@ def deactivate_tag(tag_id):
             return jsonify({'error': 'Tag not Found'}), 404
         elif user is None:
             return jsonify({'error': 'Unauthorized: User not Found'}), 401
-        elif user.role != 'admin':
-            return jsonify({'error': 'Unauthorized : Insufficient Permissions'}), 401
         
         tag.status = data.get('status', tag.status)
         db.session.commit()
