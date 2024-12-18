@@ -45,7 +45,7 @@ def get_orderitem_by_productid(product_id):
 def create_order_item(order_id):
     data = request.get_json()
     current_user_id = int(get_jwt_identity())
-    require_fields= ['product_id', 'quantity', 'variant_id']
+    require_fields= ['product_id', 'quantity', 'variant_id', 'shipping_cost']
     price = 0
     discount_product = 0
     quantity = int(data['quantity'])
@@ -65,7 +65,7 @@ def create_order_item(order_id):
         variant = db.session.query(Variant).filter_by(variant_id=data['variant_id']).first()
         order = db.session.query(Order).filter_by(order_id=order_id).first()
         discounts = db.session.query(Discount).filter_by(product_id=data['product_id']).all()
-        shippingCost = product.shipping_cost
+        shippingCost = data.get('shipping_cost', 0)
         
         if user is None or user.status != 'active':
             return jsonify({'error': 'Unauthorizhed: User not found'}), 404
@@ -100,13 +100,13 @@ def create_order_item(order_id):
             product_id=product.product_id, 
             quantity=quantity, 
             unit_price= price,
-            total_price = (price - discount_product + shippingCost ) * quantity 
+            total_price = ((price - discount_product) * quantity) +shippingCost 
             )
 
         variant.stock -= quantity
         product.sold += quantity
         order.total_amount += orderItem.total_price
-        total_shipping_cost = shippingCost * quantity
+        
 
         db.session.add(orderItem)
         db.session.commit()
@@ -117,7 +117,7 @@ def create_order_item(order_id):
                         'unit_price': orderItem.unit_price,
                         'total_price': orderItem.total_price,
                         'total_discount_per_product': discount_product,
-                        'total_shipping_cost': total_shipping_cost}), 201
+                        'total_shipping_cost': shippingCost}), 201
     except Exception as e:
         db.session.rollback()
         print(e)
@@ -129,7 +129,7 @@ def create_order_item(order_id):
 def create_order_and_order_item():
     data = request.get_json()
     current_user_id = int(get_jwt_identity())
-    require_fields = ['product_id', 'quantity', 'variant_id']
+    require_fields = ['product_id', 'quantity', 'variant_id', 'shipping_cost']
     price = 0
     discount_product = 0
 
@@ -148,7 +148,7 @@ def create_order_and_order_item():
         product = db.session.query(Product).filter_by(product_id=data['product_id']).first()
         variant = db.session.query(Variant).filter_by(variant_id=data['variant_id']).first()
         discounts = db.session.query(Discount).filter_by(product_id=data['product_id']).all()
-        shippingCost = product.shipping_cost
+        shippingCost = data.get('shipping_cost', 0)
 
         if user is None or user.status != 'active':
             return jsonify({'error': 'Unauthorizhed: User not found'}), 404
@@ -184,13 +184,13 @@ def create_order_and_order_item():
             product_id=product.product_id,
             quantity=quantity,
             unit_price=price,
-            total_price= (price - discount_product + shippingCost) * quantity
+            total_price= ((price - discount_product) * quantity) + shippingCost
         )
 
         variant.stock -= quantity
         product.sold += quantity
         order.total_amount += orderItem.total_price
-        total_shipping_cost = shippingCost * quantity
+
         
         db.session.add(orderItem)
         db.session.commit()
@@ -202,7 +202,7 @@ def create_order_and_order_item():
                         'unit_price': orderItem.unit_price,
                         'total_price': orderItem.total_price,
                         'total_discount_per_product': discount_product,
-                        'total_shipping_cost': total_shipping_cost
+                        'total_shipping_cost': shippingCost
                         }), 201
     except Exception as e:
         db.session.rollback()
@@ -216,7 +216,7 @@ def create_order_and_order_item():
 def create_multiple_order(order_id):
     data =request.get_json()
     current_user_id = get_jwt_identity()
-    required_fields = ['product_id','quantity','variant_id']
+    required_fields = ['product_id','quantity','variant_id', 'shipping_cost']
     total_amount = 0
     orderItem_list= []
     
@@ -247,8 +247,8 @@ def create_multiple_order(order_id):
             quantity = int(element['quantity'])
             price = variant.price
             total_discount_per_product = 0
-            shippingCost = product.shipping_cost
-            total_shipping_cost = shippingCost * quantity
+            shippingCost = data.get('shipping_cost', 0)
+
 
 
             if discount:
@@ -276,7 +276,7 @@ def create_multiple_order(order_id):
                 product_id= product.product_id,
                 quantity= quantity,
                 unit_price= price,
-                total_price= (price - total_discount_per_product + shippingCost) * quantity
+                total_price= ((price - total_discount_per_product ) * quantity) + shippingCost
             )
 
             total_amount += orderItem.total_price
@@ -294,7 +294,7 @@ def create_multiple_order(order_id):
                         'unit_price': orderItem.unit_price,
                         'total_price': orderItem.total_price,
                         'total_discount_per_product': total_discount_per_product,
-                        'total_shipping_cost': total_shipping_cost
+                        'total_shipping_cost': shippingCost
                     }
             orderItem_list.append(new_order)
         
