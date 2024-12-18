@@ -57,7 +57,7 @@ def create_tag():
         new_tag = Tag(tag_name= lower_tag_name)
         db.session.add(new_tag)
         db.session.commit()
-        return jsonify({'message': 'Tag created successfully'}), 201
+        return jsonify({'message': 'Tag created successfully', 'tag': new_tag.to_dict()}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to created Tag'}), 500

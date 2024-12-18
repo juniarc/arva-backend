@@ -48,6 +48,9 @@ class Product(db.Model):
     #relasi ke rating
     rating = relationship("Rating", back_populates="product", cascade="all, delete", lazy=True)
 
+    #relasi ke wishlist
+    wishlist = relationship("Wishlist", back_populates="product", cascade="all, delete", lazy=True)
+
 
 
 

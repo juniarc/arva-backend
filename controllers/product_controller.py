@@ -396,7 +396,7 @@ def get_product_by_shop(shop_id):
                 'variant': variants,
                 'ratings': ratings,
                 'discount': discount_list,
-                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city},
+                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city, 'shop_name':product.shop.shop_name},
             })
 
         return jsonify( product_list), 200
@@ -499,6 +499,7 @@ def create_new_product():
 @product_bp.route('/searchproduct/<string:product_name>', methods=['GET'])
 def search_product_by_name(product_name):
     try:
+        product_name.lower()
         products = db.session.query(Product).filter(Product.product_name.ilike(f'%{product_name}%')).all()
         product_list = []
 
