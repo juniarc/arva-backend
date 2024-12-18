@@ -552,3 +552,72 @@ def search_product_by_name(product_name):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f'Failed to get products {e}'}), 500
+
+
+
+
+
+@product_bp.route('/getreqlimitallproduct/<int:limit>', methods=['GET'])
+def get_request_allproduct_limit(limit):
+    
+    try:
+        products = db.session.query(Product).filter_by(status='active').limit(limit).all()
+        product_list = []
+
+        for product in products:
+            category_name = product.category.category_name
+            variant = db.session.query(Variant).filter_by(product_id=product.product_id).all()
+            image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
+            shop_id = product.shop.shop_id
+            shop_address_city = product.shop.shop_address_city
+            discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
+            ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
+           
+            discount_list =[]
+            variants = []
+            images = []
+            tags = []
+
+            for discount in discounts:
+                discount_list.append(discount.to_dict())
+
+            if image_product:
+                for image in image_product:
+                    # image = {
+                    #     'image_id': image.image_id,
+                    #     'image_data': image.image_data
+                    # }
+                    image = image.image_data
+                    images.append(image)
+            
+            if variant:
+                for v in variant:
+                    v = {
+                        'variant_id': v.variant_id,
+                        'variant_name': v.variant_name,
+                        'variant_price': v.price,
+                        'variant_stock': v.stock,
+                        'variant_unit': v.unit
+                    }
+                    variants.append(v)
+
+            product_list.append({
+                'product_id': product.product_id,
+                'product_name': product.product_name,
+                'description': product.description,
+                'product_type': product.product_type,
+                'shipping_cost': product.shipping_cost,
+                'sold': product.sold,
+                'created_at': product.created_at,
+                'status': product.status,
+                'category': category_name,
+                'image': images,
+                'variant': variants,
+                'discount': discount_list,
+                'ratings': ratings,
+                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city, 'shop_name':product.shop.shop_name},
+            })
+
+        return jsonify( product_list), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get request product {e}'}), 500
