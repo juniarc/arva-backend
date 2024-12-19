@@ -21,11 +21,23 @@ def get_shop(user_id):
             if shop is None:
                 return jsonify({'error': 'Shop not found'}), 404
             if shop.status != 'active':
-                return jsonify({'error':'Shop is not actived'})
+                return jsonify({'error':'Shop is not actived'}), 400
             return jsonify(shop.to_dict()), 200
         except Exception as e:
             return jsonify({'error': 'Failed to get shop'}), 500
     return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
+
+@shop_bp.route('/getshopbyid/<int:shop_id>', methods=['GET'])
+def get_shop_by_id(shop_id):
+    try:
+        shop = db.session.query(Shop).filter_by(shop_id=shop_id).first()
+        if shop is None:
+            return jsonify({'error': 'Shop not found'}), 404
+        elif shop.status != 'active':
+            return jsonify({'error':'Shop is not actived'}), 400
+        return jsonify(shop.to_dict()), 200
+    except Exception as e:
+        return jsonify({'error': 'Failed to get shop'}), 500
 
 
 @shop_bp.route('/allshops', methods=['GET'])
@@ -57,6 +69,10 @@ def create_shop(user_id):
         return jsonify({'error': 'Missing address: district'})
     elif 'shop_address_subdistrict' not in data:
         return jsonify({'error': 'Misssing address: subdistrict'})
+    elif 'shop_email' not in data:
+        return jsonify({'error': 'Missing email'})
+    elif 'shop_zip_code' not in data:
+        return jsonify({'error': 'Missing zip code'})
     
     if current_user_id != user_id:
         return jsonify({'error': 'Unauthorized: Insufficient permissions'}), 401
@@ -72,14 +88,17 @@ def create_shop(user_id):
             shop_address_district=data['shop_address_district'],
             shop_address_subdistrict=data['shop_address_subdistrict'],
             user_id=user_id,
-            status= 'active'
+            status= 'active',
+            shop_email=data.get('shop_email'),
+            shop_phone_number=data.get('shop_phone_number'),
+            shop_zip_code=data.get('shop_zip_code')
         )
         db.session.add(new_shop)
         db.session.commit()
-        return jsonify({'message': 'Shop created successfully'}), 200
+        return jsonify({'message': 'Shop created successfully', 'shop': new_shop.to_dict()}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Failed to create shop'}), 500
+        return jsonify({'error': f'Failed to create shop {e}'}), 500
     
 
 @shop_bp.route('/<int:user_id>', methods=['PUT'])
@@ -108,6 +127,9 @@ def update_shop(user_id):
         shop.shop_address_city = data.get('shop_address_city', shop.shop_address_city)
         shop.shop_address_district = data.get('shop_address_district', shop.shop_address_district)
         shop.shop_address_subdistrict = data.get('shop_address_subdistrict', shop.shop_address_subdistrict)
+        shop.shop_email = data.get('shop_email', shop.shop_email)
+        shop.shop_phone_number = data.get('shop_phone_number', shop.shop_phone_number)
+        shop.shop_zip_code = data.get('shop_zip_code', shop.shop_zip_code)
         db.session.commit()
         return jsonify({'message': 'Shop updated successfully'}), 200
     except Exception as e:

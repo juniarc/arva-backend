@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from connector.db import db
 from flask_migrate import Migrate
 import os
@@ -14,9 +15,13 @@ from controllers.tag_product_controller import tag_product_bp
 from controllers.discount_controller import discount_bp
 from controllers.order_controller import order_bp
 from controllers.orderItem_controller import orderItem_Bp
-
+from controllers.cart_controller import cart_bp
+from controllers.rating_controller import rating_bp
+from controllers.voucher_controller import voucher_bp
+from controllers.wishlist_controller import wishlist_bp
 
 app = Flask(__name__)
+CORS(app)
 
 
 app.config['JWT_SECRET_KEY'] = os.getenv('SECRET_KEY')  
@@ -33,6 +38,11 @@ app.register_blueprint(user_bp, url_prefix='/user')
 app.register_blueprint(discount_bp, url_prefix='/discount')
 app.register_blueprint(order_bp, url_prefix='/order')
 app.register_blueprint(orderItem_Bp, url_prefix='/orderitem')
+app.register_blueprint(cart_bp, url_prefix='/cart')
+app.register_blueprint(rating_bp, url_prefix='/rating')
+app.register_blueprint(voucher_bp, url_prefix='/voucher')
+app.register_blueprint(wishlist_bp, url_prefix='/wishlist')
+
 
 
 

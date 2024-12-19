@@ -2,6 +2,12 @@ from flask import jsonify, request, Blueprint
 from models.tag_product import TagProductAssociation
 from models.products import Product
 from models.tags import Tag
+from models.category import Category
+from models.variant import Variant
+from models.discount import Discount
+from models.shops import Shop
+from models.rating import Rating    
+from models.image_product import ImageProduct
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from connector.db import db
 
@@ -39,15 +45,73 @@ def get_product_by_tagid(tag_id):
 @tag_product_bp.route('/getproductbytagname/<string:tag_name>', methods=['GET'])
 def get_product_by_tag_name(tag_name):
     lower_tag_name = tag_name.lower()
+    product_list = []
     try:
         tag = db.session.query(Tag).filter_by(tag_name=lower_tag_name).first()
         if tag is None:
             return jsonify({'error': 'Tag not found'}), 404
         tag_id = tag.tag_id
+        
         product_tags = db.session.query(TagProductAssociation).filter_by(tag_id=tag_id).all()
-        return jsonify([product_tag.product.to_dict() for product_tag in product_tags]), 200
+
+        for element in product_tags:
+            product = db.session.query(Product).filter_by(product_id=element.product_id).first()
+            if product.status != 'active':
+                continue
+            category_name = product.category.category_name
+            variant = db.session.query(Variant).filter_by(product_id=product.product_id).all()
+            image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
+            shop_id = product.shop_id
+            shop_name = product.shop.shop_name
+            shop_address_city = product.shop.shop_address_city
+            discounts =  db.session.query(Discount).filter_by(product_id=product.product_id).all()
+            ratings = db.session.query(db.func.avg(Rating.rating_product)).filter_by(product_id=product.product_id).scalar()
+
+            discount_list= []
+            variants = []
+            images = []
+
+            for discount in discounts:
+                discount_list.append(discount.to_dict())
+
+            if image_product:
+                for image in image_product:
+
+                    image = image.image_data
+                    images.append(image)
+            
+            if variant:
+                for v in variant:
+                    v = {
+                        'variant_id': v.variant_id,
+                        'variant_name': v.variant_name,
+                        'variant_price': v.price,
+                        'variant_stock': v.stock,
+                        'variant_unit': v.unit
+                    }
+                    variants.append(v)
+
+            product_list.append({
+                'product_id': product.product_id,
+                'product_name': product.product_name,
+                'description': product.description,
+                'product_type': product.product_type,
+                'shipping_cost': product.shipping_cost,
+                'sold': product.sold,
+                'created_at': product.created_at,
+                'status': product.status,
+                'category': category_name,
+                'image': images,
+                'variant': variants,
+                'discount': discount_list,
+                'ratings': ratings,
+                'shop':{'shop_id':shop_id,'shop_address_city':shop_address_city, 'shop_name':product.shop.shop_name},
+            })
+
+        return jsonify( product_list), 200
+            
     except Exception as e:
-        return jsonify({'error': 'Failed to get product by tag name'}), 500
+        return jsonify({'error': f'Failed to get product by tag name {e}'}), 500
     
 @tag_product_bp.route('/createtagproduct/<int:product_id>', methods=['POST'])
 @jwt_required()
