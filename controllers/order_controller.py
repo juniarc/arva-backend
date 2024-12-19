@@ -143,6 +143,7 @@ def checkout_order(order_id):
                 voucher_dicount = voucher.voucher_value
 
             order.payment_amount = order.total_amount - voucher_dicount
+            order.voucher_id = voucher_id
 
        
         order.status = 'completed'
@@ -151,7 +152,8 @@ def checkout_order(order_id):
                         'payment_amount': order.payment_amount,
                         'voucher_discount': voucher_dicount,
                         'total_amount': order.total_amount,
-                        'order_id': order.order_id}), 200
+                        'order_id': order.order_id,
+                        'voucher_id': order.voucher_id}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to checkout order {e}'}), 500
