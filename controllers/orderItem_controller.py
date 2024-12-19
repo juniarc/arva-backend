@@ -216,7 +216,7 @@ def create_order_and_order_item():
 def create_multiple_order(order_id):
     data =request.get_json()
     current_user_id = get_jwt_identity()
-    required_fields = ['product_id','quantity','variant_id', 'shipping_cost']
+    required_fields = ['product_id','quantity','variant_id','shipping_cost']
     total_amount = 0
     orderItem_list= []
     
@@ -247,7 +247,7 @@ def create_multiple_order(order_id):
             quantity = int(element['quantity'])
             price = variant.price
             total_discount_per_product = 0
-            shippingCost = data.get('shipping_cost', 0)
+            shippingCost = element.get('shipping_cost', 0)
 
 
 
