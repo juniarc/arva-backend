@@ -161,6 +161,27 @@ def checkout_order(order_id):
 def get_complete_order_by_user_id(user_id):
     try:
         orders = db.session.query(Order).filter_by(user_id=user_id, status='completed').all()
-        return jsonify([order.to_dict() for order in orders]), 200
+        order_list = []
+        
+        for order in orders:
+            orderItem = order.order_item
+            for item in orderItem:
+                
+                order_list.append({
+                    'order_id': item.order_id,
+                    'orderitem_id': item.orderitem_id,
+                    'product_id': item.product_id,
+                    'unit_price': item.unit_price,
+                    'total_price': item.total_price,
+                    'created_at': item.created_at,
+                    'status': order.status,
+                    'user_id': order.user_id,
+                    'total_amount': order.total_amount,
+                    'payment_amount': order.payment_amount,
+                    'voucher_id': order.voucher_id
+
+                })
+
+        return jsonify(order_list), 200
     except Exception as e:
         return jsonify({'error': 'Failed to get complete order by user id'}), 500
