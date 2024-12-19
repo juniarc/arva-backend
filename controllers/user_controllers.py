@@ -115,6 +115,7 @@ def update_user(user_id):
             if user is None:
                 return jsonify({'error': 'User not found'}), 404
             user.username = data.get('username', user.username)
+            user.name = data.get('name', user.name)
             user.email = data.get('email', user.email)
             user.phone_number = data.get('phone_number', user.phone_number)
             user.address_street = data.get('address_street', user.address_street)
