@@ -509,6 +509,7 @@ def search_product_by_name(product_name):
             image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
+            shop_name = product.shop.shop_name
             discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
            
             discount_list =[]
@@ -540,11 +541,14 @@ def search_product_by_name(product_name):
                 'category_name': category_name,
                 'product_type': product.product_type,
                 'shipping_cost': product.shipping_cost,
-                'shop_id': shop_id,
                 'shop_address_city': shop_address_city,
                 'variants': variants,
                 'images': images,
                 'discounts': discount_list,
+                'shop': {
+                    'shop_id': shop_id,
+                    'shop_name': shop_name,
+                    'shop_address_city': shop_address_city},
                 'tags': tags
             })
 
