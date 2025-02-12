@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from flask import Flask, jsonify
 from flask_cors import CORS
 from connector.db import db
@@ -19,6 +20,8 @@ from controllers.cart_controller import cart_bp
 from controllers.rating_controller import rating_bp
 from controllers.voucher_controller import voucher_bp
 from controllers.wishlist_controller import wishlist_bp
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -44,21 +47,16 @@ app.register_blueprint(voucher_bp, url_prefix='/voucher')
 app.register_blueprint(wishlist_bp, url_prefix='/wishlist')
 
 
-
-
-
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("POSTGRES_CONNECTION_STRING")
 if not app.config['SQLALCHEMY_DATABASE_URI']:
     raise RuntimeError("Environment variable 'POSTGRES_CONNECTION_STRING' not set!")
-
-
+print(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+print(os.getenv("POSTGRES_CONNECTION_STRING"))
 db.init_app(app)
 migrate = Migrate(app, db)
 
-
-print(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
-print(os.getenv("POSTGRES_CONNECTION_STRING"))
-
+with app.app_context():
+    db.create_all()
 
 @app.route("/")
 def index():
