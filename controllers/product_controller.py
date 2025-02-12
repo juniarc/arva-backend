@@ -216,7 +216,7 @@ def get_request_allproduct():
         for product in products:
             category_name = product.category.category_name
             variant = db.session.query(Variant).filter_by(product_id=product.product_id).all()
-            # image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
+            image_product = db.session.query(ImageProduct).filter_by(product_id=product.product_id).all()
             shop_id = product.shop.shop_id
             shop_address_city = product.shop.shop_address_city
             discounts = db.session.query(Discount).filter_by(product_id=product.product_id).all()
@@ -230,14 +230,14 @@ def get_request_allproduct():
             for discount in discounts:
                 discount_list.append(discount.to_dict())
 
-            # if image_product:
-            #     for image in image_product:
-            #         # image = {
-            #         #     'image_id': image.image_id,
-            #         #     'image_data': image.image_data
-            #         # }
-            #         image = image.image_data
-            #         images.append(image)
+            if image_product:
+                for image in image_product:
+                    # image = {
+                    #     'image_id': image.image_id,
+                    #     'image_data': image.image_data
+                    # }
+                    image = image.image_data
+                    images.append(image)
             
             if variant:
                 for v in variant:
@@ -260,7 +260,7 @@ def get_request_allproduct():
                 'created_at': product.created_at,
                 'status': product.status,
                 'category': category_name,
-                # 'image': images,
+                'image': images,
                 'variant': variants,
                 'discount': discount_list,
                 'ratings': ratings,
