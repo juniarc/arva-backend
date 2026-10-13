@@ -204,3 +204,17 @@ export async function registerAndLogin(app: Express, username: string): Promise<
   const res = await request(app).post('/api/auth/login').send({ username, password }).expect(200);
   return res.body.access_token as string;
 }
+
+// Inserts a cart row directly (no stock rules), so tests can set up any state.
+// Returns the cart item id.
+export async function createCartRow(username: string, variantId: number, quantity: number): Promise<number> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { usernameLower: username.toLowerCase() },
+    select: { id: true },
+  });
+  const item = await prisma.cartItem.create({
+    data: { userId: user.id, variantId, quantity },
+    select: { id: true },
+  });
+  return item.id;
+}

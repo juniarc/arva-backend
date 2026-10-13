@@ -1,53 +1,14 @@
 import { NotFoundError, StockConflictError, ValidationError } from '../lib/errors.js';
-import { toImageUrl } from '../lib/imageUrl.js';
-import { calculateLineTotal } from '../lib/money.js';
-import { cartRepository, type CartItemRecord } from '../repositories/cart.repository.js';
-import { MAX_CART_QUANTITY, type AddToCartInput } from '../schemas/cart.schema.js';
+import { cartRepository } from '../repositories/cart.repository.js';
+import {
+  MAX_CART_QUANTITY,
+  USE_DELETE_MESSAGE,
+  type AddToCartInput,
+  type PatchCartItemInput,
+} from '../schemas/cart.schema.js';
+import { toCartResponse, type CartResponse } from './cart.mapper.js';
 
-export interface CartItemResponse {
-  id: string;
-  quantity: number;
-  product: { id: string; slug: string; name: string; imageUrl: string; shopName: string };
-  variant: { id: string; label: string; unit: string; price: number; stock: number };
-}
-
-export interface CartResponse {
-  items: CartItemResponse[];
-  itemCount: number;
-  subtotal: number;
-}
-
-// The cart shows the variant's CURRENT price. No price is copied into the cart row.
-// Checkout will need to snapshot prices into the order.
-function toCartResponse(records: CartItemRecord[]): CartResponse {
-  const items = records.map((item) => ({
-    id: String(item.id),
-    quantity: item.quantity,
-    product: {
-      id: String(item.variant.product.id),
-      slug: item.variant.product.slug,
-      name: item.variant.product.name,
-      imageUrl: toImageUrl(item.variant.product.imageUrl),
-      shopName: item.variant.product.shop.name,
-    },
-    variant: {
-      id: String(item.variant.id),
-      label: item.variant.label,
-      unit: item.variant.unit,
-      price: item.variant.price,
-      stock: item.variant.stock,
-    },
-  }));
-
-  return {
-    items,
-    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    subtotal: items.reduce(
-      (sum, item) => sum + calculateLineTotal(item.variant.price, item.quantity),
-      0,
-    ),
-  };
-}
+export type { CartItemResponse, CartResponse } from './cart.mapper.js';
 
 async function getCart(userId: number): Promise<CartResponse> {
   return toCartResponse(await cartRepository.findByUser(userId));
@@ -87,4 +48,54 @@ async function addToCart(userId: number, input: AddToCartInput): Promise<CartRes
   return getCart(userId);
 }
 
-export const cartService = { getCart, addToCart };
+const CART_ITEM_NOT_FOUND = 'Cart item not found.';
+
+async function updateItemQuantity(
+  userId: number,
+  itemId: string,
+  input: PatchCartItemInput,
+): Promise<CartResponse> {
+  if (input.quantity < 1) {
+    throw new ValidationError('Please fix the highlighted fields.', { quantity: USE_DELETE_MESSAGE });
+  }
+  const id = Number(itemId);
+
+  // Same pattern as addToCart: the variant row is locked, so the stock check and the
+  // update cannot interleave with another write on the same variant. Stock is not reserved.
+  return cartRepository.runInTransaction(async (tx) => {
+    // Only this user's items match, so another user's item looks the same as a missing one.
+    const variantId = await tx.findItemVariantId(userId, id);
+    if (variantId === null) {
+      throw new NotFoundError(CART_ITEM_NOT_FOUND);
+    }
+    // Also null when the product is inactive: same 404, same message.
+    const variant = await tx.lockActiveVariant(variantId);
+    if (!variant) {
+      throw new NotFoundError(CART_ITEM_NOT_FOUND);
+    }
+    if (variant.stock === 0) {
+      throw new StockConflictError('OUT_OF_STOCK', 'This variant is out of stock.');
+    }
+    if (input.quantity > variant.stock) {
+      throw new StockConflictError('INSUFFICIENT_STOCK', `Only ${variant.stock} left in stock.`);
+    }
+    if (!(await tx.updateItemQuantity(userId, id, input.quantity))) {
+      throw new NotFoundError(CART_ITEM_NOT_FOUND);
+    }
+
+    return toCartResponse(await tx.findByUser(userId));
+  });
+}
+
+// Ids that belong to other users, or do not exist, match nothing and are ignored.
+// The response is the same either way, so it never reveals which ids exist.
+async function removeItems(userId: number, itemIds: string[]): Promise<CartResponse> {
+  const uniqueIds = [...new Set(itemIds.map(Number))];
+
+  return cartRepository.runInTransaction(async (tx) => {
+    await tx.deleteItems(userId, uniqueIds);
+    return toCartResponse(await tx.findByUser(userId));
+  });
+}
+
+export const cartService = { getCart, addToCart, updateItemQuantity, removeItems };

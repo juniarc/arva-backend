@@ -166,4 +166,31 @@ curl -s -X POST $API/cart -H "Authorization: Bearer $TOKEN" -H 'Content-Type: ap
 # Quantity 0: 400 with errors.quantity
 curl -s -X POST $API/cart -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d "{\"variantId\":\"$VARIANT\",\"quantity\":0}"
+
+# GET /cart now has product.shop { slug, name } on each item, ordered by shop, product, variant
+ITEM=$(curl -s $API/cart -H "Authorization: Bearer $TOKEN" | node -e "console.log(JSON.parse(require('fs').readFileSync(0)).items[0].id)")
+
+# Change the quantity: 200 with the full cart
+curl -s -X PATCH $API/cart/items/$ITEM -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"quantity":5}'
+
+# Above the stock: 409 INSUFFICIENT_STOCK
+curl -s -X PATCH $API/cart/items/$ITEM -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"quantity":99}'
+
+# Quantity 0: 400, errors.quantity says to use DELETE
+curl -s -X PATCH $API/cart/items/$ITEM -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"quantity":0}'
+
+# No token: 401
+curl -s -X PATCH $API/cart/items/$ITEM -H 'Content-Type: application/json' -d '{"quantity":2}'
+
+# Remove items (the body needs Content-Type: application/json): 200 with the remaining cart
+curl -s -X DELETE $API/cart/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"itemIds\":[\"$ITEM\"]}"
+
+# An id of another user (or an unknown id) is ignored: 200, nothing removed
+curl -s -X DELETE $API/cart/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":["999999"]}'
+
+# Empty list: 400 with errors.itemIds
+curl -s -X DELETE $API/cart/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":[]}'
+
+# No token: 401
+curl -s -X DELETE $API/cart/items -H 'Content-Type: application/json' -d '{"itemIds":["1"]}'
 ```

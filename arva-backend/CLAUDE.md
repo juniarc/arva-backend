@@ -164,7 +164,10 @@ Catalog (public):
 
 Cart (requires `Authorization: Bearer <token>`, 401 otherwise):
 
-- `GET /cart`: `{ items: [{ id, quantity, product: { id, slug, name, imageUrl, shopName }, variant: { id, label, unit, price, stock } }], itemCount, subtotal }`
+- `GET /cart`: `{ items: [{ id, quantity, product: { id, slug, name, imageUrl, shopName, shop: { slug, name } }, variant: { id, label, unit, price, stock } }], itemCount, subtotal }`
+  - `shopName` is kept for compatibility and always equals `shop.name`.
+  - Items are ordered by shop name, product name, then variant position, so the client can group by shop without sorting.
+  - Items whose product is inactive are left out of `items`, `itemCount` and `subtotal`. Their rows are not deleted.
 - `POST /cart`
   - Body: `{ variantId: string, quantity: 1..99 }`. Unknown keys are rejected.
   - 200: the full cart, same shape as `GET /cart`. Adding a variant already in the cart increases its quantity.
@@ -173,8 +176,17 @@ Cart (requires `Authorization: Bearer <token>`, 401 otherwise):
   - 409: `{ message: "This variant is out of stock.", code: "OUT_OF_STOCK" }` or `{ message: "Only <n> left in stock.", code: "INSUFFICIENT_STOCK" }`
   - 429 after 60 requests per minute per user.
   - Stock is checked but not reserved. The cart shows current prices (no snapshot).
+- `PATCH /cart/items/:id` (`id` is a numeric string)
+  - Body: `{ quantity: 1..99 }`. Unknown keys are rejected. Quantity 0 gives 400 (use DELETE).
+  - 200: the full cart. 400: validation. 404: `{ message: "Cart item not found." }` (missing, another user's, or inactive product).
+  - 409: `{ message: "This variant is out of stock.", code: "OUT_OF_STOCK" }` or `{ message: "Only <n> left in stock.", code: "INSUFFICIENT_STOCK" }` (n is the variant stock).
+  - 429 after 60 requests per minute per user.
+- `DELETE /cart/items`
+  - Body: `{ itemIds: string[] }`, 1 to 100 numeric strings, duplicates removed. Unknown keys are rejected. The client must send `Content-Type: application/json`.
+  - 200: the full cart after removal. Ids that belong to other users or do not exist are ignored, with no error.
+  - 400: validation (`errors.itemIds`). 429 after 60 requests per minute per user.
 
-Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/cart` update and delete, `/wishlist`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
+Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/wishlist`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
 
 If a backend change is needed, update this section and `docs/DECISIONS.md` first, then the code.
 

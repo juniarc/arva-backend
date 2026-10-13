@@ -117,3 +117,9 @@ Reason: simpler and common in marketplaces. Re-check stock when the order is pla
 - Who creates vouchers: sellers only, the platform only, or both.
 - Whether cart is grouped by shop at checkout, or one order per shop.
 - How stock is handled for variants that sell out during checkout.
+
+**CONTRACT CHANGE: `GET /cart` adds `product.shop { slug, name }`, keeps `product.shopName`, returns items in a fixed order, and leaves out items of inactive products.**
+Reason: the cart page groups items by shop. Order is shop name, product name, product id, variant position, item id. Inactive items are hidden from the items and totals but not deleted, so they return if the product is activated again and the user does not lose a cart line to a temporary change. The user can still remove them with DELETE (they are no longer shown, so this only matters for stale ids).
+
+**CONTRACT CHANGE: new `PATCH /cart/items/:id` and `DELETE /cart/items`.**
+Reason: cart page quantity and remove actions. PATCH sets an absolute quantity (1 to 99) and runs in a transaction that locks the variant row, like add. Quantity 0 is a 400, since removing is DELETE. DELETE takes a JSON body, so clients must send `Content-Type: application/json`. It ignores ids that do not belong to the user, so the answer never reveals which ids exist. Stock is still checked per cart and not reserved.

@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { prisma } from '../../src/lib/prisma.js';
-import { registerAndLogin, resetDatabase, seedFixtures, type Fixtures } from '../helpers/db.js';
+import { createCartRow, registerAndLogin, resetDatabase, seedFixtures, type Fixtures } from '../helpers/db.js';
 
 let app: ReturnType<typeof createApp>;
 let fixtures: Fixtures;
@@ -43,6 +43,53 @@ describe('GET /api/cart', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ items: [], itemCount: 0, subtotal: 0 });
   });
+
+  it('returns product.shop for each item, and shopName still equals shop.name', async () => {
+    await addToCart(token, { variantId: variantId('sprayer/2 L'), quantity: 1 }).expect(200);
+    await addToCart(token, { variantId: variantId('cucumber/1 kg'), quantity: 1 }).expect(200);
+
+    const res = await request(app).get('/api/cart').set('Authorization', `Bearer ${token}`);
+
+    const shops = res.body.items.map((i: { product: { shop: unknown } }) => i.product.shop);
+    expect(shops).toEqual([
+      { slug: 'shop-b', name: 'Shop B' },
+      { slug: 'shops-name', name: "Shop's Name" },
+    ]);
+    for (const item of res.body.items as { product: { shopName: string; shop: { name: string } } }[]) {
+      expect(item.product.shopName).toBe(item.product.shop.name);
+    }
+  });
+
+  it('orders items by shop name, product name, then variant position', async () => {
+    // Added in a scrambled order. The mango variant has no stock, so it is inserted directly.
+    await addToCart(token, { variantId: variantId('cucumber/1 kg'), quantity: 1 }).expect(200);
+    await addToCart(token, { variantId: variantId('bali-banana-fruit/2 kg'), quantity: 1 }).expect(200);
+    await addToCart(token, { variantId: variantId('sprayer/2 L'), quantity: 1 }).expect(200);
+    await addToCart(token, { variantId: variantId('bali-banana-fruit/1 kg'), quantity: 1 }).expect(200);
+    await createCartRow('alice', fixtures.variantIds['mango/1 kg'] ?? 0, 1);
+
+    const res = await request(app).get('/api/cart').set('Authorization', `Bearer ${token}`);
+
+    expect(res.body.items.map((i: { product: { slug: string }; variant: { label: string } }) => `${i.product.slug}/${i.variant.label}`)).toEqual([
+      'mango/1 kg',
+      'sprayer/2 L',
+      'bali-banana-fruit/1 kg',
+      'bali-banana-fruit/2 kg',
+      'cucumber/1 kg',
+    ]);
+  });
+
+  it('leaves out items of inactive products from the items and totals, but keeps the rows', async () => {
+    await addToCart(token, { variantId: variantId('cucumber/1 kg'), quantity: 2 }).expect(200);
+    await createCartRow('alice', fixtures.variantIds['hidden/1 kg'] ?? 0, 3);
+
+    const res = await request(app).get('/api/cart').set('Authorization', `Bearer ${token}`);
+
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.itemCount).toBe(2);
+    expect(res.body.subtotal).toBe(1000);
+    expect(await prisma.cartItem.count()).toBe(2);
+  });
 });
 
 describe('POST /api/cart', () => {
@@ -67,6 +114,7 @@ describe('POST /api/cart', () => {
             name: 'bali-banana-fruit',
             imageUrl: '/images/dummy/bali-banana-fruit.jpg',
             shopName: "Shop's Name",
+            shop: { slug: 'shops-name', name: "Shop's Name" },
           },
           variant: { id: variantId('bali-banana-fruit/1 kg'), label: '1 kg', unit: 'kg', price: 1000, stock: 10 },
         },
