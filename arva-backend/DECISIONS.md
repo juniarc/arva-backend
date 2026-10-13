@@ -179,3 +179,37 @@ Reason: avoids changing the checkout rule. This is the one place to change if th
 
 **Planned for the checkout backend (not built): a new draft copies the profile address. The draft needs a label and a recipient name that the profile does not store, so the label defaults to "Home", the recipient name to the profile name, and the phone to the profile phone. If the profile phone is null, checkout must ask for it. The profile address has a zip code that the checkout draft has no column for, so the draft needs one (or drops it) when the copy is built.**
 
+**CONTRACT CHANGE: shops get description, contact, address, opening hours and a unique owner; new tables `shipping_channels` and `shop_shipping_channels`; new endpoints `GET /shops/me`, `PUT /shops/me`, `GET /shops/:slug/products`, `GET /shipping-channels`; `GET /shops/:slug` gains new fields.**
+Reason: shop page and owner shop settings. Seeded shops have no owner, so the owner view is tested with a fixture shop only. A shop can have no shipping channel until its owner saves one (the update requires at least one).
+
+**One shop per user is enforced by a unique `ownerId`. This is provisional.**
+Reason: the earlier open question. Postgres allows many null owners, so seeded shops without an owner are fine.
+
+**Shop names are unique ignoring letter case, through a functional index on `lower(name)` that only exists in the migration SQL. The update checks the name and also catches the database violation, so two parallel updates cannot both win.**
+
+**The shop slug never changes when the name changes.**
+Reason: slugs are URL identifiers, and changing them would break links.
+
+**The shop `city` text is kept and set to the chosen city's name when the owner saves the address.**
+Reason: the product list city filter and the cities list read this column.
+
+**Public shop endpoints use optional authentication: a missing, invalid or expired token means guest, never 401. `isOwner` and `ownerDetails` are decided in the service from the verified user id. Responses that can contain owner data are sent with `Cache-Control: private, no-store`.**
+
+**`GET /shops/me` returns `operatingHours` as an object and flat region ids, while `PUT /shops/me` takes flat `openingTime` and `closingTime`. This asymmetry is intentional, and the frontend must follow it. Overnight hours are not supported.**
+
+**Known gaps: the owner edit form has no zip code input, so `zipCode` is optional on update and keeps its current value. The shop email and phone are visible to the owner only, and the owner may want them public. Logo upload is not built.**
+
+**CONTRACT CHANGE: new tables `shipping_options`, `vouchers` and `payment_methods`, with seed data for testing checkout. There are no endpoints for them yet.**
+Reason: checkout testing needs data before the shipping, voucher and payment tasks exist. The fields are PROVISIONAL, and those tasks may change them. Prices and amounts are integer IDR. `Voucher.value` means percent off for PERCENT, IDR off for FIXED, and the most IDR of shipping covered for FREE_SHIPPING. A voucher with no `shopId` is a platform voucher. Rules such as "percent is at most 100" and "ends after it starts" are CHECK constraints in the migration.
+
+**The voucher seed uses dates relative to the day it runs, and does not reset `usedCount` on a re-run.**
+Reason: the "valid" vouchers must be valid when you test. Running the seed again moves the windows forward and keeps real usage. The seed has edge-case rows on purpose: an expired voucher, one that starts tomorrow, a used-up one and a switched-off one, plus a switched-off shipping option and a disabled payment method.
+
+**CONTRACT CHANGE: new endpoint `POST /shops` creates the user's shop.**
+Reason: the create shop page had nothing to call (it returned 404). The body is the same as `PUT /shops/me` (the frontend's request was not available, so check it matches). The user becomes the owner. A user who already has a shop gets 409 `SHOP_ALREADY_EXISTS` (one shop per user, still provisional), and this is also guarded by the unique owner id when two requests race. The slug is made from the name and gets `-2`, `-3` when taken. If two shops pick the same slug at the same moment, the create is retried with the next one.
+
+**CONTRACT CHANGE: region ids are the wilayah.id codes without dots, stored as TEXT. This replaces the earlier rule that region ids come from the seed order.**
+Reason: the frontend address form uses wilayah.id and sends its codes (province 2 digits, city 4, district 6, sub-district 10). A 10 digit code such as 3171071001 is larger than 2,147,483,647, so it cannot be a 32 bit integer. TEXT was chosen over BIGINT because Prisma returns BIGINT as a JavaScript bigint, which JSON cannot hold, and because a code is an identifier, not a number. Ids are accepted as `^\d{1,10}$`. Each code starts with its parent's code, so the service checks the prefix as well as the stored parent, and a CHECK constraint in the database enforces the length and the prefix. The migration moves the regions of the earlier seed (ids 1, 2, 3 ...) to their codes, and the shops, drafts and saved addresses that point at them move too (the foreign keys cascade on update). Region names now follow wilayah.id, so "Jakarta Selatan" is "Kota Administrasi Jakarta Selatan". A shop's `city` text keeps its old value until the owner saves the shop again.
+
+**The full region list is loaded with `npm run db:import-regions` (opt-in, from https://wilayah.id). The seed keeps a small subset with real codes.**
+Reason: the address form can pick any region in Indonesia, and an address whose regions are not in the database is rejected. The import makes about 8,000 requests, so it is a one-off command, not part of the seed.

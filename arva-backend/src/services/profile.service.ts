@@ -34,8 +34,8 @@ export interface ProfileResponse {
 
 const NOT_LOGGED_IN = 'Please log in.';
 
-function toRegionRef(region: { id: number; name: string }): RegionRef {
-  return { id: String(region.id), name: region.name };
+function toRegionRef(region: { id: string; name: string }): RegionRef {
+  return { id: region.id, name: region.name };
 }
 
 // The one place a profile record becomes the API response. address is null when no row exists.
@@ -117,10 +117,10 @@ async function updateProfile(userId: number, input: UpdateProfileInput): Promise
 
 async function upsertAddress(userId: number, input: UpsertAddressInput): Promise<ProfileResponse> {
   const ids: RegionIds = {
-    provinceId: Number(input.province.id),
-    cityId: Number(input.city.id),
-    districtId: Number(input.district.id),
-    subDistrictId: Number(input.subDistrict.id),
+    provinceId: input.province.id,
+    cityId: input.city.id,
+    districtId: input.district.id,
+    subDistrictId: input.subDistrict.id,
   };
 
   return profileRepository.runInTransaction(async (tx) => {

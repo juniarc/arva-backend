@@ -233,11 +233,11 @@ curl -s -X DELETE $API/wishlist/items -H 'Content-Type: application/json' -d '{"
 
 ```
 curl -s $API/regions/provinces                          # no token needed
-curl -s $API/regions/provinces/1/cities
-curl -s $API/regions/cities/1/districts
-curl -s $API/regions/districts/1/sub-districts
+curl -s $API/regions/provinces/31/cities               # ids are wilayah.id codes without dots
+curl -s $API/regions/cities/3174/districts
+curl -s $API/regions/districts/317407/sub-districts
 curl -s $API/regions/provinces/abc/cities               # 400
-curl -s $API/regions/provinces/999/cities               # 404
+curl -s $API/regions/provinces/99/cities                # 404
 
 curl -s $API/checkout                                   # 401
 curl -s $API/checkout -H "Authorization: Bearer $TOKEN" # 404 until a draft exists
@@ -248,10 +248,10 @@ curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type
 curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":[]}'            # 400
 curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":["999999"]}'  # 400
 
-# Address (ids 1 = DKI Jakarta, Jakarta Selatan, Kebayoran Baru, Gunung in the seed)
-curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"1"},"city":{"id":"1"},"district":{"id":"1"},"subDistrict":{"id":"1"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
-# City 3 (Kota Bandung) is not in province 1: 400 with errors.city
-curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"1"},"city":{"id":"3"},"district":{"id":"1"},"subDistrict":{"id":"1"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
+# Address (wilayah.id codes: 31 DKI Jakarta, 3174 Jakarta Selatan, 317407 Kebayoran Baru, 3174071002 Gunung)
+curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"31"},"city":{"id":"3174"},"district":{"id":"317407"},"subDistrict":{"id":"3174071002"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
+# City 3273 (Kota Bandung) is not in province 31: 400 with errors.city
+curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"31"},"city":{"id":"3273"},"district":{"id":"317407"},"subDistrict":{"id":"3174071002"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
 ```
 
 ### Profile
@@ -267,12 +267,87 @@ curl -s -X PUT $API/profile -H "Authorization: Bearer $TOKEN" -H 'Content-Type: 
 curl -s -X PUT $API/profile -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"name":"Alice","username":"alice","email":"alice@example.com","phone":"+62 812"}'
 curl -s -X PUT $API/profile -H 'Content-Type: application/json' -d '{}'   # 401
 
-# Address (ids 1 = Gunung, Kebayoran Baru, Jakarta Selatan, DKI Jakarta in the seed)
-curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"1"},"province":{"id":"1"},"zipCode":"12110"}'
-# City 3 (Kota Bandung) is not in province 1: 400 with errors.city
-curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"3"},"province":{"id":"1"},"zipCode":"12110"}'
+# Address (wilayah.id codes: 3174071002 Gunung, 317407 Kebayoran Baru, 3174 Jakarta Selatan, 31 DKI Jakarta)
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"3174071002"},"district":{"id":"317407"},"city":{"id":"3174"},"province":{"id":"31"},"zipCode":"12110"}'
+# City 3273 (Kota Bandung) is not in province 31: 400 with errors.city
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"3174071002"},"district":{"id":"317407"},"city":{"id":"3273"},"province":{"id":"31"},"zipCode":"12110"}'
 # Zip "1234": 400 with errors.zipCode
-curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"1"},"province":{"id":"1"},"zipCode":"1234"}'
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"3174071002"},"district":{"id":"317407"},"city":{"id":"3174"},"province":{"id":"31"},"zipCode":"1234"}'
 curl -s -X PUT $API/profile/address -H 'Content-Type: application/json' -d '{}'   # 401
 ```
 
+### Shops and shipping channels
+
+```
+curl -s $API/shops/bali-fresh-farm                              # guest: isOwner false, ownerDetails null
+curl -s $API/shops/bali-fresh-farm -H "Authorization: Bearer $OWNER_TOKEN"   # owner view (needs a shop with an owner)
+curl -s "$API/shops/bali-fresh-farm/products?sort=popular"
+curl -s "$API/shops/bali-fresh-farm/products?sort=other"        # 400
+
+curl -s $API/shops/me                                           # 401
+curl -s $API/shops/me -H "Authorization: Bearer $TOKEN"         # 404 if you own no shop
+
+curl -s -X PUT $API/shops/me -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"My Farm","provinceId":"31","cityId":"3174","districtId":"317407","subDistrictId":"3174071002","street":"Jl. Toko 7","email":"farm@example.com","phone":"+6281200001111","openingTime":"09:00","closingTime":"19:00","shippingChannelIds":["1"]}'
+# Duplicate name (any letter case): 409 with field "name"
+curl -s -X PUT $API/shops/me -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"bali fresh farm","provinceId":"31","cityId":"3174","districtId":"317407","subDistrictId":"3174071002","street":"Jl. Toko 7","email":"farm@example.com","phone":null,"openingTime":"09:00","closingTime":"19:00","shippingChannelIds":["1"]}'
+# Closing before opening: 400 with errors.closingTime
+curl -s -X PUT $API/shops/me -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"My Farm","provinceId":"31","cityId":"3174","districtId":"317407","subDistrictId":"3174071002","street":"Jl. Toko 7","email":"farm@example.com","phone":null,"openingTime":"19:00","closingTime":"09:00","shippingChannelIds":["1"]}'
+curl -s -X PUT $API/shops/me -H 'Content-Type: application/json' -d '{}'   # 401
+
+curl -s $API/shipping-channels                                  # JNE, J&T Express
+```
+
+The seeded shops have no owner, so there is no seeded owner token. To try the owner view, give a registered user a shop in the database first, for example `UPDATE shops SET owner_id = <user id> WHERE slug = 'bali-fresh-farm';`.
+
+### Checkout test data (seed)
+
+`npm run db:seed` also loads data for testing checkout. It creates no users, orders or drafts, and has no endpoints yet.
+
+| Shipping option | Price (IDR) | Days |
+|---|---|---|
+| JNE Regular | 12.000 | 3-5 |
+| JNE Express | 25.000 | 1-2 |
+| JNE Same Day | 40.000 | 0-1 |
+| J&T Express Regular | 11.000 | 3-5 |
+| J&T Express Express | 22.000 | 1-2 |
+| J&T Express Cargo (switched off) | 90.000 | 5-10 |
+
+Payment methods: `BANK_TRANSFER`, `E_WALLET`, `COD`, and `CREDIT_CARD` (disabled, "Coming soon").
+
+| Voucher | Rule | Minimum spend | Shop |
+|---|---|---|---|
+| `WELCOME15` | 15% off, up to Rp30.000 | 100.000 | platform |
+| `HEMAT20K` | Rp20.000 off (500 uses) | 150.000 | platform |
+| `FREESHIP` | free shipping up to Rp15.000 | 75.000 | platform |
+| `BALI10` | 10% off, up to Rp20.000 | 50.000 | bali-fresh-farm |
+| `TANI5K` | Rp5.000 off | 30.000 | tani-makmur |
+| `JAVA25` | 25% off, up to Rp50.000 (100 uses) | 100.000 | java-harvest |
+| `SHOPFREE` | free shipping up to Rp12.000 | 40.000 | shops-name |
+| `EXPIRED10` | expired yesterday | 0 | platform |
+| `SOON25` | starts tomorrow | 0 | platform |
+| `USEDUP50` | 10 of 10 uses taken | 0 | platform |
+| `PAUSED5K` | switched off | 0 | platform |
+
+The valid vouchers run from a week ago to 60 days ahead, counted from the day you run the seed. Run the seed again to move the dates forward. Shops you create yourself have no vouchers yet.
+
+### Create shop
+
+```
+curl -s -X POST $API/shops -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"My Farm","provinceId":"31","cityId":"3174","districtId":"317407","subDistrictId":"3174071002","street":"Jl. Toko 7","email":"farm@example.com","phone":"+6281200001111","openingTime":"09:00","closingTime":"19:00","shippingChannelIds":["1"]}'
+# 201 with the shop. The same user again: 409 SHOP_ALREADY_EXISTS. Same name (any case): 409 with field "name".
+curl -s -X POST $API/shops -H 'Content-Type: application/json' -d '{}'   # 401
+```
+
+### Full region list (wilayah.id)
+
+The seed loads only a few regions. To load every province, city, district and sub-district from https://wilayah.id (about 8,000 requests, a few minutes, safe to run again):
+
+```
+npm run db:import-regions                     # everything
+npm run db:import-regions -- --province=31    # one province
+npm run db:import-regions -- --dry-run        # fetch and count only
+```

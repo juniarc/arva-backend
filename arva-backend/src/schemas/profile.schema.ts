@@ -1,12 +1,10 @@
 import { z } from 'zod';
 import { PROFILE_PHONE_PATTERN } from '../lib/phone.js';
 import { emailRule, usernameRule } from './auth.schema.js';
-
-const numericId = (label: string) =>
-  z.string({ error: `${label} is required.` }).regex(/^\d{1,9}$/, `${label} must be a numeric string.`);
+import { regionIdRule } from './region.schema.js';
 
 const regionRef = (label: string) =>
-  z.object({ id: numericId(`${label} id`) }, { error: `${label} is required.` }).strict();
+  z.object({ id: regionIdRule(`${label} id`) }, { error: `${label} is required.` }).strict();
 
 // The username and email rules are the register rules (trimmed, email lowercased).
 export const updateProfileSchema = z

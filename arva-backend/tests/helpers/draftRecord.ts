@@ -12,17 +12,17 @@ interface ItemInput {
   position?: number;
 }
 
-const NAMED = (id: number, name: string) => ({ id, name });
+const NAMED = (id: string, name: string) => ({ id, name });
 
 export const fullAddress = {
   addressLabel: 'Home',
   addressStreet: 'Jl. Mawar 1',
   recipientName: 'Alice',
   phone: '081234567890',
-  province: NAMED(1, 'DKI Jakarta'),
-  city: NAMED(1, 'Jakarta Selatan'),
-  district: NAMED(1, 'Kebayoran Baru'),
-  subDistrict: NAMED(1, 'Gunung'),
+  province: NAMED('31', 'DKI Jakarta'),
+  city: NAMED('3171', 'Kota Administrasi Jakarta Pusat'),
+  district: NAMED('317107', 'Tanah Abang'),
+  subDistrict: NAMED('3171071001', 'Gelora'),
 } satisfies Partial<DraftRecord>;
 
 // Builds a draft record the way the repository returns it.

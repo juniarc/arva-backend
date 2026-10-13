@@ -15,7 +15,7 @@ export class ValidationError extends Error {
 export class ConflictError extends Error {
   constructor(
     message: string,
-    public readonly field: 'username' | 'email',
+    public readonly field: 'username' | 'email' | 'name',
   ) {
     super(message);
     this.name = 'ConflictError';
@@ -55,5 +55,29 @@ export class UniqueViolationError extends Error {
   constructor(public readonly field: 'username' | 'email') {
     super(`Unique violation on ${field}`);
     this.name = 'UniqueViolationError';
+  }
+}
+
+// The database refused a shop write because another shop already has this name (ignoring case).
+export class ShopNameViolationError extends Error {
+  constructor() {
+    super('Unique violation on shop name');
+    this.name = 'ShopNameViolationError';
+  }
+}
+
+// The database refused a shop write because the slug is already used (two shops got the same slug at once).
+export class ShopSlugViolationError extends Error {
+  constructor() {
+    super('Unique violation on shop slug');
+    this.name = 'ShopSlugViolationError';
+  }
+}
+
+// The user already owns a shop. Mapped to 409 with the code SHOP_ALREADY_EXISTS.
+export class ShopAlreadyExistsError extends Error {
+  constructor() {
+    super('You already have a shop.');
+    this.name = 'ShopAlreadyExistsError';
   }
 }

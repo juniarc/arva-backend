@@ -132,19 +132,19 @@ describe('checkoutService.getDraft', () => {
 describe('checkoutService.setAddress', () => {
   const input = {
     label: 'Home',
-    province: { id: '1' },
-    city: { id: '2' },
-    district: { id: '3' },
-    subDistrict: { id: '4' },
+    province: { id: '31' },
+    city: { id: '3171' },
+    district: { id: '317107' },
+    subDistrict: { id: '3171071001' },
     street: 'Jl. Mawar 1',
     recipientName: 'Alice',
     phone: '081234567890',
   };
   const consistent = {
-    province: { id: 1 },
-    city: { provinceId: 1 },
-    district: { cityId: 2 },
-    subDistrict: { districtId: 3 },
+    province: { id: '31' },
+    city: { provinceId: '31' },
+    district: { cityId: '3171' },
+    subDistrict: { districtId: '317107' },
   };
 
   it('throws not found when there is no draft', async () => {
@@ -156,7 +156,7 @@ describe('checkoutService.setAddress', () => {
 
   it('saves nothing when a region does not match its parent', async () => {
     fakeCheckout.draftExists.mockResolvedValue(true);
-    fakeRegions.findParents.mockResolvedValue({ ...consistent, city: { provinceId: 9 } });
+    fakeRegions.findParents.mockResolvedValue({ ...consistent, city: { provinceId: '32' } });
 
     const error = await rejection(checkoutService.setAddress(USER, input));
 
@@ -178,10 +178,10 @@ describe('checkoutService.setAddress', () => {
       street: 'Jl. Mawar 1',
       recipientName: 'Alice',
       phone: '081234567890',
-      provinceId: 1,
-      cityId: 2,
-      districtId: 3,
-      subDistrictId: 4,
+      provinceId: '31',
+      cityId: '3171',
+      districtId: '317107',
+      subDistrictId: '3171071001',
     });
   });
 });

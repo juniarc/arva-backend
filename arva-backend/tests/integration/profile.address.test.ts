@@ -45,7 +45,7 @@ async function jakartaAddress() {
     street: 'Jl. Mawar No. 1',
     subDistrict: { id: String(await regionId('subDistrict', 'Gunung')) },
     district: { id: String(await regionId('district', 'Kebayoran Baru')) },
-    city: { id: String(await regionId('city', 'Jakarta Selatan')) },
+    city: { id: String(await regionId('city', 'Kota Administrasi Jakarta Selatan')) },
     province: { id: String(await regionId('province', 'DKI Jakarta')) },
     zipCode: '12110',
   };
@@ -77,7 +77,7 @@ describe('PUT /api/profile/address', () => {
       street: 'Jl. Mawar No. 1',
       subDistrict: { id: expect.any(String), name: 'Gunung' },
       district: { id: expect.any(String), name: 'Kebayoran Baru' },
-      city: { id: expect.any(String), name: 'Jakarta Selatan' },
+      city: { id: expect.any(String), name: 'Kota Administrasi Jakarta Selatan' },
       province: { id: expect.any(String), name: 'DKI Jakarta' },
       zipCode: '12110',
     };
@@ -187,5 +187,54 @@ describe('PUT /api/profile/address', () => {
     const after = await request(app).get('/api/checkout').set('Authorization', `Bearer ${token}`);
     expect(after.body).toEqual(before.body);
     expect(after.body.address).toBeNull();
+  });
+});
+
+describe('PUT /api/profile/address with wilayah.id codes', () => {
+  it('saves a 10 digit sub-district code above the 32 bit integer limit', async () => {
+    const res = await putAddress(token, {
+      street: 'Jl. Gelora 1',
+      zipCode: '10270',
+      province: { id: '31' },
+      city: { id: '3171' },
+      district: { id: '317107' },
+      subDistrict: { id: '3171071001' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.address).toMatchObject({
+      subDistrict: { id: '3171071001', name: 'Gelora' },
+      district: { id: '317107', name: 'Tanah Abang' },
+      city: { id: '3171', name: 'Kota Administrasi Jakarta Pusat' },
+      province: { id: '31', name: 'DKI Jakarta' },
+    });
+  });
+
+  it('rejects a sub-district code that does not start with its district code', async () => {
+    const res = await putAddress(token, {
+      street: 'Jl. Gelora 1',
+      zipCode: '10270',
+      province: { id: '31' },
+      city: { id: '3171' },
+      district: { id: '317107' },
+      subDistrict: { id: '3174071002' },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors.subDistrict).toBe('This sub-district is not in the selected district.');
+  });
+
+  it('rejects a code longer than 10 digits', async () => {
+    const res = await putAddress(token, {
+      street: 'Jl. Gelora 1',
+      zipCode: '10270',
+      province: { id: '31' },
+      city: { id: '3171' },
+      district: { id: '317107' },
+      subDistrict: { id: '31710710011' },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors.subDistrict).toEqual(expect.any(String));
   });
 });

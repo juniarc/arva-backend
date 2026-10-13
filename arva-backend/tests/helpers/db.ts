@@ -1,6 +1,8 @@
 import request from 'supertest';
 import type { Express } from 'express';
+import { seedPaymentMethods, seedShippingOptions, seedVouchers } from '../../prisma/data/checkout-options.js';
 import { seedRegions } from '../../prisma/data/regions.js';
+import { seedShippingChannels } from '../../prisma/data/shipping-channels.js';
 import { prisma } from '../../src/lib/prisma.js';
 
 export async function resetDatabase(): Promise<void> {
@@ -9,6 +11,11 @@ export async function resetDatabase(): Promise<void> {
     prisma.wishlistItem.deleteMany(),
     prisma.checkoutDraft.deleteMany(),
     prisma.userAddress.deleteMany(),
+    prisma.voucher.deleteMany(),
+    prisma.paymentMethod.deleteMany(),
+    prisma.shippingOption.deleteMany(),
+    prisma.shopShippingChannel.deleteMany(),
+    prisma.shippingChannel.deleteMany(),
     prisma.subDistrict.deleteMany(),
     prisma.district.deleteMany(),
     prisma.city.deleteMany(),
@@ -292,8 +299,9 @@ export async function seedTestRegions(): Promise<void> {
 
 export type RegionLevel = 'province' | 'city' | 'district' | 'subDistrict';
 
-// Looks up a region id by its name. Some names exist at two levels (for example "Menteng").
-export async function regionId(level: RegionLevel, name: string): Promise<number> {
+// Looks up a region id (its wilayah.id code) by its name. Some names exist at two levels
+// (for example "Menteng").
+export async function regionId(level: RegionLevel, name: string): Promise<string> {
   const where = { name };
   const select = { id: true };
   switch (level) {
@@ -306,4 +314,62 @@ export async function regionId(level: RegionLevel, name: string): Promise<number
     case 'subDistrict':
       return (await prisma.subDistrict.findFirstOrThrow({ where, select })).id;
   }
+}
+
+// Loads the seeded shipping channels: "JNE" (sort order 1) and "J&T Express" (2).
+export async function seedTestChannels(): Promise<void> {
+  await seedShippingChannels(prisma);
+}
+
+export interface OwnedShopOptions {
+  slug: string;
+  name: string;
+  ownerUsername: string;
+  // Defaults to a complete owner profile in Jakarta Selatan.
+  zipCode?: string | null;
+  channelNames?: string[];
+}
+
+// Creates a shop owned by an existing user (register the user first), with full owner data.
+// Needs seedTestRegions() and seedTestChannels() to have run. Returns the shop id.
+export async function createOwnedShop(options: OwnedShopOptions): Promise<number> {
+  const owner = await prisma.user.findUniqueOrThrow({
+    where: { usernameLower: options.ownerUsername.toLowerCase() },
+    select: { id: true },
+  });
+  const channels = await prisma.shippingChannel.findMany({
+    where: { name: { in: options.channelNames ?? ['JNE'] } },
+    select: { id: true },
+  });
+
+  const shop = await prisma.shop.create({
+    data: {
+      slug: options.slug,
+      name: options.name,
+      city: 'Kota Administrasi Jakarta Selatan',
+      description: 'A fixture shop.',
+      email: `${options.slug}@shop.example.com`,
+      phone: '+6281200001111',
+      street: 'Jl. Toko 7',
+      zipCode: options.zipCode === undefined ? '12110' : options.zipCode,
+      provinceId: await regionId('province', 'DKI Jakarta'),
+      cityId: await regionId('city', 'Kota Administrasi Jakarta Selatan'),
+      districtId: await regionId('district', 'Kebayoran Baru'),
+      subDistrictId: await regionId('subDistrict', 'Gunung'),
+      openingTime: '08:00',
+      closingTime: '17:00',
+      ownerId: owner.id,
+      shippingChannels: { create: channels.map((channel) => ({ shippingChannelId: channel.id })) },
+    },
+    select: { id: true },
+  });
+  return shop.id;
+}
+
+// Loads the checkout test data: shipping options, payment methods and vouchers.
+// Needs seedTestChannels() first, and the shops used by the shop vouchers (see prisma/data/checkout-options.ts).
+export async function seedTestCheckoutOptions(now: Date = new Date()): Promise<void> {
+  await seedShippingOptions(prisma);
+  await seedPaymentMethods(prisma);
+  await seedVouchers(prisma, now);
 }

@@ -53,8 +53,8 @@ export interface DraftResponse {
   };
 }
 
-function toRegionRef(region: { id: number; name: string }): RegionRef {
-  return { id: String(region.id), name: region.name };
+function toRegionRef(region: { id: string; name: string }): RegionRef {
+  return { id: region.id, name: region.name };
 }
 
 // The address is complete only when all eight fields are set. A partial address is

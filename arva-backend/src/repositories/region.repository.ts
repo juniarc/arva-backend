@@ -5,7 +5,7 @@ const regionSelect = { id: true, name: true } as const;
 const byName = { name: 'asc' } as const;
 
 export interface RegionRecord {
-  id: number;
+  id: string;
   name: string;
 }
 
@@ -14,7 +14,7 @@ function listProvinces(): Promise<RegionRecord[]> {
 }
 
 // Each "children of" query returns null when the parent does not exist.
-async function listCities(provinceId: number): Promise<RegionRecord[] | null> {
+async function listCities(provinceId: string): Promise<RegionRecord[] | null> {
   const parent = await prisma.province.findUnique({
     where: { id: provinceId },
     select: { cities: { select: regionSelect, orderBy: byName } },
@@ -22,7 +22,7 @@ async function listCities(provinceId: number): Promise<RegionRecord[] | null> {
   return parent?.cities ?? null;
 }
 
-async function listDistricts(cityId: number): Promise<RegionRecord[] | null> {
+async function listDistricts(cityId: string): Promise<RegionRecord[] | null> {
   const parent = await prisma.city.findUnique({
     where: { id: cityId },
     select: { districts: { select: regionSelect, orderBy: byName } },
@@ -30,7 +30,7 @@ async function listDistricts(cityId: number): Promise<RegionRecord[] | null> {
   return parent?.districts ?? null;
 }
 
-async function listSubDistricts(districtId: number): Promise<RegionRecord[] | null> {
+async function listSubDistricts(districtId: string): Promise<RegionRecord[] | null> {
   const parent = await prisma.district.findUnique({
     where: { id: districtId },
     select: { subDistricts: { select: regionSelect, orderBy: byName } },
@@ -39,19 +39,19 @@ async function listSubDistricts(districtId: number): Promise<RegionRecord[] | nu
 }
 
 export interface RegionIds {
-  provinceId: number;
-  cityId: number;
-  districtId: number;
-  subDistrictId: number;
+  provinceId: string;
+  cityId: string;
+  districtId: string;
+  subDistrictId: string;
 }
 
 // What the database knows about four chosen ids: each entry is null when that id does not
 // exist, otherwise it carries the id of its parent.
 export interface RegionParents {
-  province: { id: number } | null;
-  city: { provinceId: number } | null;
-  district: { cityId: number } | null;
-  subDistrict: { districtId: number } | null;
+  province: { id: string } | null;
+  city: { provinceId: string } | null;
+  district: { cityId: string } | null;
+  subDistrict: { districtId: string } | null;
 }
 
 type Client = Prisma.TransactionClient | typeof prisma;

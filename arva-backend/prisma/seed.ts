@@ -2,7 +2,10 @@
 // It does not create users, drafts or addresses (users are created through the API only).
 import { PrismaClient } from '@prisma/client';
 import { banners, categories, products, shops } from './data/dummy-products.js';
+import { seedPaymentMethods, seedShippingOptions, seedVouchers } from './data/checkout-options.js';
 import { seedRegions } from './data/regions.js';
+import { seedShippingChannels } from './data/shipping-channels.js';
+import { seedShopProfiles } from './data/shop-profiles.js';
 import { IMAGES_PER_PRODUCT, productDetails } from './data/dummy-product-detail.js';
 
 const prisma = new PrismaClient();
@@ -141,6 +144,11 @@ async function main(): Promise<void> {
   const counts = await seedProducts(categoryIds, shopIds);
   await seedBanners();
   const regionCounts = await seedRegions(prisma);
+  const channelCount = await seedShippingChannels(prisma);
+  const profileCount = await seedShopProfiles(prisma);
+  const shippingOptionCount = await seedShippingOptions(prisma);
+  const paymentMethodCount = await seedPaymentMethods(prisma);
+  const voucherCount = await seedVouchers(prisma);
 
   console.log('Seed finished:');
   console.log(`  categories: ${categories.length}`);
@@ -154,6 +162,11 @@ async function main(): Promise<void> {
   console.log(`  cities:        ${regionCounts.cities}`);
   console.log(`  districts:     ${regionCounts.districts}`);
   console.log(`  sub-districts: ${regionCounts.subDistricts}`);
+  console.log(`  shipping channels: ${channelCount}`);
+  console.log(`  shop profiles filled: ${profileCount}`);
+  console.log(`  shipping options: ${shippingOptionCount}`);
+  console.log(`  payment methods:  ${paymentMethodCount}`);
+  console.log(`  vouchers:         ${voucherCount}`);
 }
 
 main()

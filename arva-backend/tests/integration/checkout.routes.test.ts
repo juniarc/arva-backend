@@ -66,7 +66,7 @@ async function validAddress() {
   return {
     label: 'Home',
     province: { id: String(await regionId('province', 'DKI Jakarta')) },
-    city: { id: String(await regionId('city', 'Jakarta Selatan')) },
+    city: { id: String(await regionId('city', 'Kota Administrasi Jakarta Selatan')) },
     district: { id: String(await regionId('district', 'Kebayoran Baru')) },
     subDistrict: { id: String(await regionId('subDistrict', 'Gunung')) },
     street: 'Jl. Mawar No. 1',
@@ -356,7 +356,7 @@ describe('PUT /api/checkout/address', () => {
       recipientName: 'Alice',
       phone: '081234567890',
       province: { id: expect.any(String), name: 'DKI Jakarta' },
-      city: { id: expect.any(String), name: 'Jakarta Selatan' },
+      city: { id: expect.any(String), name: 'Kota Administrasi Jakarta Selatan' },
       district: { id: expect.any(String), name: 'Kebayoran Baru' },
       subDistrict: { id: expect.any(String), name: 'Gunung' },
     });
@@ -487,5 +487,26 @@ describe('PUT /api/checkout/address', () => {
     }
 
     expect(last).toBe(429);
+  });
+});
+
+describe('PUT /api/checkout/address with wilayah.id codes', () => {
+  it('saves a 10 digit sub-district code above the 32 bit integer limit', async () => {
+    const cart = await aliceCart();
+    await createDraft(token, { itemIds: [String(cart.banana)] }).expect(200);
+
+    const res = await putAddress(token, {
+      label: 'Home',
+      province: { id: '31' },
+      city: { id: '3171' },
+      district: { id: '317107' },
+      subDistrict: { id: '3171071001' },
+      street: 'Jl. Gelora 1',
+      recipientName: 'Alice',
+      phone: '081234567890',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.address.subDistrict).toEqual({ id: '3171071001', name: 'Gelora' });
   });
 });

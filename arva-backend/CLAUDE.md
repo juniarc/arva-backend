@@ -160,7 +160,9 @@ Catalog (public):
 - `GET /products/recommended?exclude=&excludeShop=&limit=` (strict: unknown keys give 400). Best sellers, leaving out one product id and every product of one shop. `limit` default 6, max 24. 200: `{ products: [Product] }`.
 - `GET /products/:slug`: 200 `{ product: ProductDetail }`. 404 `{ message: "Product not found." }`.
 - `GET /products/:slug/reviews?page=&limit=` (strict). `limit` default 10, max 50. 200: `{ reviews: [Review], pagination }`. 404 for an unknown or inactive product.
-- `GET /shops/:slug`: 200 `{ shop: { slug, name, city, logoUrl, rating: { average, ratingCount }, productCount } }` (productCount counts active products only). 404 `{ message: "Shop not found." }`.
+- `GET /shops/:slug` (optional token: a missing or invalid token means guest, never 401): `{ shop: { slug, name, city, logoUrl, description, operatingHours: { open, close }, rating: { average, ratingCount }, productCount, isOwner, ownerDetails } }`. `productCount` counts active products only. `operatingHours` is "00:00" and "00:00" when the shop has none saved. `isOwner` is true only when the token's user id equals the shop's owner. `ownerDetails` is null unless `isOwner`, otherwise `{ contact: { email, phone }, address: { street, zipCode, province, city, district, subDistrict } | null, shippingChannels: [{ id, name }] }` (each region is `{ id, name }`). 404 `{ message: "Shop not found." }`. Not cached.
+- `GET /shops/:slug/products?page=&limit=&sort=` (optional token, strict query): `sort` is `newest` (default: createdAt, id desc) or `popular` (soldCount, ratingCount, id desc). `page` default 1, `limit` default 12, max 48. 200: `{ products: [{ id, slug, name, imageUrl, categoryName, price, originalPrice, discountPercent, rating, soldCount, city, shop: { slug, name }, manage }], pagination }`. Guests and non-owners see active products with `manage: null`. The owner also sees inactive products, with `manage: { isActive, totalStock, variantLabels, ratingCount }`. 404 for an unknown shop.
+- `GET /shipping-channels`: `{ items: [{ id, name }] }`, ordered by sortOrder, then name. Public.
 - Product (list item): `{ id, slug, name, categorySlug, categoryName, price, originalPrice, discountPercent, rating, soldCount, city, imageUrl, shopSlug, shopName }`. `price` is the lowest variant price. `originalPrice` and `discountPercent` come from that same variant and are null when it is not discounted. `city` is the shop's city.
 - ProductDetail: `{ id, slug, name, description, categorySlug, categoryName, soldCount, rating: { average, ratingCount, reviewCount }, images: [{ id, url, alt }], variants: [{ id, label, unit, price, originalPrice, stock }], defaultVariantId, shop: { slug, name, city, logoUrl, rating: { average, ratingCount } }, reviewPreview: [Review] }`. Images and variants are ordered by position. `defaultVariantId` is the first variant. `reviewPreview` has up to 10 reviews, newest first.
 - Review: `{ id, authorName, authorAvatarUrl, rating, text, createdAt }`. `createdAt` is ISO 8601. Reviews are read-only for now.
@@ -207,8 +209,10 @@ Wishlist (requires `Authorization: Bearer <token>`, 401 otherwise):
 Regions (public, 120 requests per minute per IP, cached 1 hour per server instance; unknown parents are not cached):
 
 - `GET /regions/provinces`: `{ items: [{ id, name }] }`, sorted by name.
-- `GET /regions/provinces/:id/cities`, `GET /regions/cities/:id/districts`, `GET /regions/districts/:id/sub-districts`: same shape. 404 `{ message: "Province not found." | "City not found." | "District not found." }`. 400 when `:id` is not numeric.
-- The seeded regions are a small development subset. The full Indonesian list is loaded later.
+- `GET /regions/provinces/:id/cities`, `GET /regions/cities/:id/districts`, `GET /regions/districts/:id/sub-districts`: same shape. 404 `{ message: "Province not found." | "City not found." | "District not found." }`. 400 when `:id` is not 1 to 10 digits.
+- Region ids are the wilayah.id codes without dots, as strings: province 2 digits (`"31"`), city 4 (`"3171"`), district 6 (`"317107"`), sub-district 10 (`"3171071001"`). Each code starts with its parent's code. Names are the wilayah.id names (for example "Kota Administrasi Jakarta Pusat").
+- Every address that takes region ids (checkout, profile, shop) accepts `^\d{1,10}$` and rejects a child whose code does not start with its parent's code (400 on that field, for example `errors.city`), then checks the regions exist.
+- The seed loads a small subset. `npm run db:import-regions` loads the full list from wilayah.id.
 
 Checkout (requires `Authorization: Bearer <token>`, 401 otherwise). One draft per user:
 
@@ -231,7 +235,19 @@ Profile (requires `Authorization: Bearer <token>`, 401 otherwise):
 - `PUT /profile/address`: body `{ street (1-200), subDistrict: { id }, district: { id }, city: { id }, province: { id }, zipCode (5 digits) }`, strict. Creates or replaces the one saved address. 200: the full profile. 400 with a field error for a bad value, an unknown region id, or a region that is not in its parent (for example `errors.city`). 429 after 20 requests per minute per user.
 - Not built: photo upload, password change, email verification. Changing the email takes effect immediately.
 
-Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
+Shop owner (requires `Authorization: Bearer <token>`, 401 otherwise). One shop per user (provisional):
+
+- `GET /shops/me`: `{ shop: { slug, name, logoUrl, description, operatingHours: { open, close }, provinceId, cityId, districtId, subDistrictId, street, zipCode, email, phone, shippingChannelIds } }`. Region ids are strings or null. 404 `{ message: "Shop not found." }` when the user owns no shop.
+- `PUT /shops/me`: body `{ name (3-50), description? (0-2000), provinceId, cityId, districtId, subDistrictId, street (1-200), zipCode? (5 digits), email, phone (string or null), openingTime ("HH:MM"), closingTime ("HH:MM"), shippingChannelIds (1 or more, no duplicates) }`, strict. `description` and `zipCode` keep their current value when omitted. 200: `{ shop }` as in `GET /shops/me`.
+  - The response gives `operatingHours` as an object, the request sends flat `openingTime` and `closingTime`. This is intentional.
+  - 400 with field errors (`errors.cityId` for a city that is not in the province, `errors.closingTime` when it is not later than opening, `errors.shippingChannelIds` for an unknown channel, `errors.phone`). 404 when the user owns no shop. 409 `{ message: "This shop name is already taken.", field: "name" }` (case-insensitive, your own name is fine). 429 after 20 requests per minute per user.
+  - The slug never changes. The shop's `city` text is set to the chosen city's name.
+- `POST /shops` (creates the user's shop): body is the same as `PUT /shops/me` (strict; `description` and `zipCode` are optional and default to empty and null). 201: `{ shop }` as in `GET /shops/me`.
+  - The slug is made from the name (lowercase, words joined by `-`, `-2`, `-3` added when taken) and never changes.
+  - 400 with field errors, as for `PUT /shops/me`. 409 `{ message: "This shop name is already taken.", field: "name" }`, or 409 `{ message: "You already have a shop.", code: "SHOP_ALREADY_EXISTS" }` (one shop per user). 429 after 20 requests per minute per user.
+- Not built: logo upload.
+
+Planned endpoint groups (no contract yet): `/products/mine`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
 
 If a backend change is needed, update this section and `docs/DECISIONS.md` first, then the code.
 

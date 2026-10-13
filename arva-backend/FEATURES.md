@@ -30,9 +30,9 @@ A user can be a buyer and a seller at the same time. Sellers can buy from other 
 | 12 | Products | Search (products, categories, shops) | Guest | Design pending | Figma: search results |
 | 13 | Products | Product detail (images, variants, stock, price, discount, reviews) | Guest | Design pending | Figma: product detail |
 | 14 | Products | Ratings and reviews | Buyer (write), Guest (read) | Design pending | Figma: review section, rating modal |
-| 15 | Shops | Public shop page (shop info, products) | Guest | Design pending | Figma: shop page |
-| 16 | Shops | Create shop | Buyer | Design pending | Figma: create shop |
-| 17 | Seller | My shop dashboard | Seller | Design pending | Figma: my shop |
+| 15 | Shops | Public shop page (shop info, products) | Guest | Backend built, design pending | Figma: shop page |
+| 16 | Shops | Create shop | Buyer | Backend built, design pending | Figma: create shop |
+| 17 | Seller | My shop dashboard | Seller | Backend built (view and update shop), design pending | Figma: my shop |
 | 18 | Seller | Manage products (create, edit, status, stock, variants) | Seller | Design pending | Figma: manage product modal |
 | 19 | Seller | Tags | Seller | Design pending | Figma: tag modal |
 | 20 | Seller | Vouchers and discounts | Seller | Design pending | Figma: voucher section |

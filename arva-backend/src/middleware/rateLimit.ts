@@ -89,6 +89,21 @@ export function createProfileWriteLimiter(): RequestHandler {
   });
 }
 
+// Shop owner write limit (update shop): 20 requests per minute for each logged-in user.
+// Must run after requireAuth, like the cart limiter.
+export function createShopWriteLimiter(): RequestHandler {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => String(req.user?.id ?? ipKeyGenerator(req.ip ?? '')),
+    handler: (_req, res) => {
+      res.status(429).json({ message: 'Too many requests. Please try again later.' });
+    },
+  });
+}
+
 function readUsername(req: Request): string {
   const body: unknown = req.body;
   if (typeof body === 'object' && body !== null && 'username' in body) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { regionIdRule } from './region.schema.js';
 
 export const MAX_DRAFT_ITEMS = 100;
 
@@ -17,7 +18,7 @@ export const createDraftSchema = z
 export type CreateDraftInput = z.infer<typeof createDraftSchema>;
 
 const regionRef = (label: string) =>
-  z.object({ id: numericId(`${label} id`) }, { error: `${label} is required.` }).strict();
+  z.object({ id: regionIdRule(`${label} id`) }, { error: `${label} is required.` }).strict();
 
 const text = (label: string, max: number) =>
   z

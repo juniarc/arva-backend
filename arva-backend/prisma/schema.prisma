@@ -25,7 +25,7 @@ model User {
   photoUrl      String?        @map("photo_url")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
-  shops         Shop[]
+  shop          Shop?
   cartItems     CartItem[]
   reviews       Review[]
   wishlistItems WishlistItem[]
@@ -55,21 +55,44 @@ model Category {
 }
 
 model Shop {
-  id           Int       @id @default(autoincrement())
-  slug         String    @unique
-  name         String
-  city         String
-  // Path or URL of the shop logo.
-  logoUrl      String?   @map("logo_url")
+  id               Int                   @id @default(autoincrement())
+  // A URL identifier. It never changes, even when the shop is renamed.
+  slug             String                @unique
+  // Unique ignoring letter case. The functional index on lower(name) is in the migration SQL.
+  name             String
+  // The name of the shop's city. Kept for the product list city filter, and set from cityId
+  // whenever the owner saves the address.
+  city             String
+  // Path or URL of the shop logo. Not written yet (logo upload comes later).
+  logoUrl          String?               @map("logo_url")
+  description      String                @default("")
+  email            String?
+  phone            String?
+  street           String?
+  zipCode          String?               @map("zip_code")
+  provinceId       String?               @map("province_id")
+  province         Province?             @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  cityId           String?               @map("city_id")
+  cityRegion       City?                 @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  districtId       String?               @map("district_id")
+  district         District?             @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  subDistrictId    String?               @map("sub_district_id")
+  subDistrict      SubDistrict?          @relation(fields: [subDistrictId], references: [id], onDelete: SetNull)
+  // "HH:MM", 24 hour.
+  openingTime      String?               @map("opening_time")
+  closingTime      String?               @map("closing_time")
   // Shop rating in tenths (34 = 3.4), same as products.
-  ratingTenths Int       @default(0) @map("rating_tenths")
-  ratingCount  Int       @default(0) @map("rating_count")
-  // Null for seeded shops. Real shops get an owner when "create shop" is built.
-  ownerId      Int?      @map("owner_id")
-  owner        User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  products     Product[]
+  ratingTenths     Int                   @default(0) @map("rating_tenths")
+  ratingCount      Int                   @default(0) @map("rating_count")
+  // Null for seeded shops. The unique ownerId means one shop per user (provisional).
+  // Postgres allows many null values, so shops without an owner are fine.
+  ownerId          Int?                  @unique @map("owner_id")
+  owner            User?                 @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  products         Product[]
+  shippingChannels ShopShippingChannel[]
+  vouchers         Voucher[]
 
   @@index([city], map: "shops_city_idx")
   @@map("shops")
@@ -212,25 +235,29 @@ model WishlistItem {
   @@map("wishlist_items")
 }
 
-// Region reference data (public). Ids are fixed by the seed, not generated.
+// Region reference data (public). Ids are the wilayah.id codes without dots, stored as text:
+// province "31", city "3171", district "317107", sub-district "3171071001". A 10 digit code
+// does not fit a 32 bit integer, and each code starts with its parent's code.
 model Province {
-  id            Int             @id
+  id            String          @id
   name          String          @unique
   cities        City[]
   drafts        CheckoutDraft[]
   userAddresses UserAddress[]
+  shops         Shop[]
 
   @@map("provinces")
 }
 
 model City {
-  id            Int             @id
-  provinceId    Int             @map("province_id")
+  id            String          @id
+  provinceId    String          @map("province_id")
   province      Province        @relation(fields: [provinceId], references: [id], onDelete: Restrict)
   name          String
   districts     District[]
   drafts        CheckoutDraft[]
   userAddresses UserAddress[]
+  shopsInCity   Shop[]
 
   @@unique([provinceId, name])
   @@index([provinceId])
@@ -238,13 +265,14 @@ model City {
 }
 
 model District {
-  id            Int             @id
-  cityId        Int             @map("city_id")
+  id            String          @id
+  cityId        String          @map("city_id")
   city          City            @relation(fields: [cityId], references: [id], onDelete: Restrict)
   name          String
   subDistricts  SubDistrict[]
   drafts        CheckoutDraft[]
   userAddresses UserAddress[]
+  shops         Shop[]
 
   @@unique([cityId, name])
   @@index([cityId])
@@ -252,12 +280,13 @@ model District {
 }
 
 model SubDistrict {
-  id            Int             @id
-  districtId    Int             @map("district_id")
+  id            String          @id
+  districtId    String          @map("district_id")
   district      District        @relation(fields: [districtId], references: [id], onDelete: Restrict)
   name          String
   drafts        CheckoutDraft[]
   userAddresses UserAddress[]
+  shops         Shop[]
 
   @@unique([districtId, name])
   @@index([districtId])
@@ -274,13 +303,13 @@ model CheckoutDraft {
   addressStreet           String?             @map("address_street")
   recipientName           String?             @map("recipient_name")
   phone                   String?
-  provinceId              Int?                @map("province_id")
+  provinceId              String?             @map("province_id")
   province                Province?           @relation(fields: [provinceId], references: [id], onDelete: SetNull)
-  cityId                  Int?                @map("city_id")
+  cityId                  String?             @map("city_id")
   city                    City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
-  districtId              Int?                @map("district_id")
+  districtId              String?             @map("district_id")
   district                District?           @relation(fields: [districtId], references: [id], onDelete: SetNull)
-  subDistrictId           Int?                @map("sub_district_id")
+  subDistrictId           String?             @map("sub_district_id")
   subDistrict             SubDistrict?        @relation(fields: [subDistrictId], references: [id], onDelete: SetNull)
   damageProtectionEnabled Boolean             @default(false) @map("damage_protection_enabled")
   createdAt               DateTime            @default(now()) @map("created_at")
@@ -310,17 +339,97 @@ model UserAddress {
   userId        Int         @unique @map("user_id")
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   street        String
-  subDistrictId Int         @map("sub_district_id")
+  subDistrictId String      @map("sub_district_id")
   subDistrict   SubDistrict @relation(fields: [subDistrictId], references: [id], onDelete: Restrict)
-  districtId    Int         @map("district_id")
+  districtId    String      @map("district_id")
   district      District    @relation(fields: [districtId], references: [id], onDelete: Restrict)
-  cityId        Int         @map("city_id")
+  cityId        String      @map("city_id")
   city          City        @relation(fields: [cityId], references: [id], onDelete: Restrict)
-  provinceId    Int         @map("province_id")
+  provinceId    String      @map("province_id")
   province      Province    @relation(fields: [provinceId], references: [id], onDelete: Restrict)
   zipCode       String      @map("zip_code")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
   @@map("user_addresses")
+}
+
+model ShippingChannel {
+  id        Int                   @id @default(autoincrement())
+  name      String                @unique
+  sortOrder Int                   @map("sort_order")
+  shops     ShopShippingChannel[]
+  options   ShippingOption[]
+
+  @@map("shipping_channels")
+}
+
+model ShopShippingChannel {
+  shopId            Int             @map("shop_id")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shippingChannelId Int             @map("shipping_channel_id")
+  shippingChannel   ShippingChannel @relation(fields: [shippingChannelId], references: [id], onDelete: Restrict)
+
+  @@id([shopId, shippingChannelId])
+  @@map("shop_shipping_channels")
+}
+
+// A delivery service of a channel, for example JNE "Regular". PROVISIONAL: the shipping task
+// may change these fields. Prices are integer IDR.
+model ShippingOption {
+  id        Int             @id @default(autoincrement())
+  channelId Int             @map("channel_id")
+  channel   ShippingChannel @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  name      String
+  price     Int
+  minDays   Int             @map("min_days")
+  maxDays   Int             @map("max_days")
+  isActive  Boolean         @default(true) @map("is_active")
+
+  @@unique([channelId, name])
+  @@map("shipping_options")
+}
+
+enum VoucherType {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+// PROVISIONAL, like ShippingOption. The meaning of `value` depends on the type:
+//   PERCENT: percent off (1 to 100), capped by maxDiscount when set
+//   FIXED: IDR off
+//   FREE_SHIPPING: the most IDR of shipping the voucher covers
+// shopId null means a platform voucher. Rules Prisma cannot express are CHECK constraints in the migration.
+model Voucher {
+  id          Int         @id @default(autoincrement())
+  code        String      @unique
+  title       String
+  type        VoucherType
+  value       Int
+  maxDiscount Int?        @map("max_discount")
+  minSpend    Int         @default(0) @map("min_spend")
+  shopId      Int?        @map("shop_id")
+  shop        Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  startsAt    DateTime    @map("starts_at")
+  endsAt      DateTime    @map("ends_at")
+  // Null means unlimited.
+  usageLimit  Int?        @map("usage_limit")
+  usedCount   Int         @default(0) @map("used_count")
+  isActive    Boolean     @default(true) @map("is_active")
+
+  @@index([shopId])
+  @@map("vouchers")
+}
+
+// PROVISIONAL, like ShippingOption. No payment provider is connected (see the project decisions).
+model PaymentMethod {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  name        String
+  description String  @default("")
+  isEnabled   Boolean @default(true) @map("is_enabled")
+  sortOrder   Int     @map("sort_order")
+
+  @@map("payment_methods")
 }

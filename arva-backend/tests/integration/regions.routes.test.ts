@@ -42,7 +42,7 @@ describe('GET /api/regions/provinces', () => {
 
   it('serves the cached list until the cache is cleared', async () => {
     await request(app).get('/api/regions/provinces').expect(200);
-    await prisma.province.create({ data: { id: 900, name: 'Aceh' } });
+    await prisma.province.create({ data: { id: '11', name: 'Aceh' } });
 
     const cached = await request(app).get('/api/regions/provinces');
     regionService.clearCache();
@@ -62,14 +62,14 @@ describe('GET /api/regions/provinces/:id/cities', () => {
     const jabar = await request(app).get(`/api/regions/provinces/${jawaBarat}/cities`);
 
     expect(dki.status).toBe(200);
-    expect(names(dki.body)).toEqual(['Jakarta Pusat', 'Jakarta Selatan']);
+    expect(names(dki.body)).toEqual(['Kota Administrasi Jakarta Pusat', 'Kota Administrasi Jakarta Selatan']);
     expect(names(jabar.body)).toEqual(['Kabupaten Bogor', 'Kota Bandung']);
   });
 
   it('returns 404 for an unknown province, and does not cache the 404', async () => {
-    const missing = await request(app).get('/api/regions/provinces/900/cities');
-    await prisma.province.create({ data: { id: 900, name: 'Aceh' } });
-    const found = await request(app).get('/api/regions/provinces/900/cities');
+    const missing = await request(app).get('/api/regions/provinces/11/cities');
+    await prisma.province.create({ data: { id: '11', name: 'Aceh' } });
+    const found = await request(app).get('/api/regions/provinces/11/cities');
 
     expect(missing.status).toBe(404);
     expect(missing.body).toEqual({ message: 'Province not found.' });
@@ -87,7 +87,7 @@ describe('GET /api/regions/provinces/:id/cities', () => {
 
 describe('GET /api/regions/cities/:id/districts', () => {
   it("returns only that city's districts, sorted by name", async () => {
-    const selatan = await regionId('city', 'Jakarta Selatan');
+    const selatan = await regionId('city', 'Kota Administrasi Jakarta Selatan');
     const bandung = await regionId('city', 'Kota Bandung');
 
     const south = await request(app).get(`/api/regions/cities/${selatan}/districts`);
@@ -115,7 +115,18 @@ describe('GET /api/regions/districts/:id/sub-districts', () => {
     const res = await request(app).get(`/api/regions/districts/${kebayoran}/sub-districts`);
 
     expect(res.status).toBe(200);
-    expect(names(res.body)).toEqual(['Gunung', 'Melawai', 'Senayan']);
+    expect(names(res.body)).toEqual([
+      'Cipete Utara',
+      'Gandaria Utara',
+      'Gunung',
+      'Kramat Pela',
+      'Melawai',
+      'Petogogan',
+      'Pulo',
+      'Rawa Barat',
+      'Selong',
+      'Senayan',
+    ]);
   });
 
   it('returns 404 for an unknown district and 400 for a bad id', async () => {
@@ -125,6 +136,31 @@ describe('GET /api/regions/districts/:id/sub-districts', () => {
     expect(missing.status).toBe(404);
     expect(missing.body).toEqual({ message: 'District not found.' });
     expect(bad.status).toBe(400);
+  });
+});
+
+describe('wilayah.id codes', () => {
+  it('returns the codes as ids', async () => {
+    const provinces = await request(app).get('/api/regions/provinces');
+    const cities = await request(app).get('/api/regions/provinces/31/cities');
+
+    expect(provinces.body.items).toContainEqual({ id: '31', name: 'DKI Jakarta' });
+    expect(cities.body.items).toContainEqual({ id: '3171', name: 'Kota Administrasi Jakarta Pusat' });
+  });
+
+  it('accepts a 10 digit code above the 32 bit integer limit', async () => {
+    // 3171071001 (Gelora) > 2147483647. Its district is Tanah Abang, 317107.
+    const villages = await request(app).get('/api/regions/districts/317107/sub-districts');
+    const unknownTenDigits = await request(app).get('/api/regions/districts/3171071001/sub-districts');
+    const elevenDigits = await request(app).get('/api/regions/districts/31710710011/sub-districts');
+
+    expect(villages.body.items).toContainEqual({ id: '3171071001', name: 'Gelora' });
+    expect(unknownTenDigits.status).toBe(404);
+    expect(elevenDigits.status).toBe(400);
+  });
+
+  it('rejects a region whose code does not start with its parent code (database CHECK)', async () => {
+    await expect(prisma.city.create({ data: { id: '3299', provinceId: '31', name: 'Wrong' } })).rejects.toThrow();
   });
 });
 

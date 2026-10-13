@@ -8,6 +8,7 @@ import { homeRouter } from './home.routes.js';
 import { createProductRouter } from './product.routes.js';
 import { createProfileRouter } from './profile.routes.js';
 import { createRegionRouter } from './region.routes.js';
+import { createShippingChannelRouter } from './shipping-channel.routes.js';
 import { createShopRouter } from './shop.routes.js';
 import { createWishlistRouter } from './wishlist.routes.js';
 
@@ -26,6 +27,7 @@ export function createApiRouter(): Router {
   router.use('/checkout', createCheckoutRouter());
   router.use('/regions', createRegionRouter());
   router.use('/profile', createProfileRouter());
+  router.use('/shipping-channels', createShippingChannelRouter());
 
   return router;
 }

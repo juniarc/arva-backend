@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import {
   ConflictError,
   NotFoundError,
+  ShopAlreadyExistsError,
   StockConflictError,
   UnauthorizedError,
   ValidationError,
@@ -40,6 +41,10 @@ export function errorHandler(
   }
   if (error instanceof StockConflictError) {
     res.status(409).json({ message: error.message, code: error.code });
+    return;
+  }
+  if (error instanceof ShopAlreadyExistsError) {
+    res.status(409).json({ message: error.message, code: 'SHOP_ALREADY_EXISTS' });
     return;
   }
   if (error instanceof NotFoundError) {

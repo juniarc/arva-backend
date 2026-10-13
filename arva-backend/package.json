@@ -18,6 +18,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:import-regions": "tsx prisma/import-regions.ts",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate"
   },

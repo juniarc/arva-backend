@@ -13,10 +13,10 @@ describe('address completeness in the draft response', () => {
       street: 'Jl. Mawar 1',
       recipientName: 'Alice',
       phone: '081234567890',
-      province: { id: '1', name: 'DKI Jakarta' },
-      city: { id: '1', name: 'Jakarta Selatan' },
-      district: { id: '1', name: 'Kebayoran Baru' },
-      subDistrict: { id: '1', name: 'Gunung' },
+      province: { id: '31', name: 'DKI Jakarta' },
+      city: { id: '3171', name: 'Kota Administrasi Jakarta Pusat' },
+      district: { id: '317107', name: 'Tanah Abang' },
+      subDistrict: { id: '3171071001', name: 'Gelora' },
     });
   });
 
@@ -41,12 +41,13 @@ describe('address completeness in the draft response', () => {
 });
 
 describe('checkRegionParents', () => {
-  const ids = { provinceId: 1, cityId: 10, districtId: 100, subDistrictId: 1000 };
+  // wilayah.id codes: DKI Jakarta, Jakarta Pusat, Tanah Abang, Gelora.
+  const ids = { provinceId: '31', cityId: '3171', districtId: '317107', subDistrictId: '3171071001' };
   const consistent = {
-    province: { id: 1 },
-    city: { provinceId: 1 },
-    district: { cityId: 10 },
-    subDistrict: { districtId: 100 },
+    province: { id: '31' },
+    city: { provinceId: '31' },
+    district: { cityId: '3171' },
+    subDistrict: { districtId: '317107' },
   };
 
   it('accepts a city, district and sub-district that match their parents', () => {
@@ -54,19 +55,19 @@ describe('checkRegionParents', () => {
   });
 
   it('rejects a city from another province', () => {
-    const errors = checkRegionParents(ids, { ...consistent, city: { provinceId: 2 } });
+    const errors = checkRegionParents(ids, { ...consistent, city: { provinceId: '32' } });
 
     expect(errors).toEqual({ city: 'This city is not in the selected province.' });
   });
 
   it('rejects a district from another city', () => {
-    const errors = checkRegionParents(ids, { ...consistent, district: { cityId: 11 } });
+    const errors = checkRegionParents(ids, { ...consistent, district: { cityId: '3172' } });
 
     expect(errors).toEqual({ district: 'This district is not in the selected city.' });
   });
 
   it('rejects a sub-district from another district', () => {
-    const errors = checkRegionParents(ids, { ...consistent, subDistrict: { districtId: 101 } });
+    const errors = checkRegionParents(ids, { ...consistent, subDistrict: { districtId: '317108' } });
 
     expect(errors).toEqual({ subDistrict: 'This sub-district is not in the selected district.' });
   });
@@ -160,5 +161,55 @@ describe('draft items in the response', () => {
       summary: { shippingSubtotal: 0, buyerServiceFee: 0, handlingFee: 0, damageProtectionFee: 0, discount: 0 },
     });
     expect(JSON.stringify(response)).not.toMatch(/userId|isActive|createdAt|updatedAt|draftId/);
+  });
+});
+
+describe('checkRegionParents: wilayah.id code prefixes', () => {
+  const ids = { provinceId: '31', cityId: '3171', districtId: '317107', subDistrictId: '3171071001' };
+  const consistent = {
+    province: { id: '31' },
+    city: { provinceId: '31' },
+    district: { cityId: '3171' },
+    subDistrict: { districtId: '317107' },
+  };
+
+  it('rejects a city whose code does not start with the province code, before trusting the database', () => {
+    // Even if a bad row claimed otherwise, 3273 (Kota Bandung) is not in 31 (DKI Jakarta).
+    const errors = checkRegionParents({ ...ids, cityId: '3273' }, consistent);
+
+    expect(errors.city).toBe('This city is not in the selected province.');
+  });
+
+  it('rejects a district and a sub-district from another parent by prefix', () => {
+    const errors = checkRegionParents({ ...ids, districtId: '317407', subDistrictId: '3174071002' }, consistent);
+
+    expect(errors.district).toBe('This district is not in the selected city.');
+    expect(errors.subDistrict).toBe('This sub-district is not in the selected district.');
+  });
+
+  it('rejects a child code that equals its parent code', () => {
+    expect(checkRegionParents({ ...ids, cityId: '31' }, consistent).city).toBe(
+      'This city is not in the selected province.',
+    );
+  });
+});
+
+describe('addressSchema: region id format', () => {
+  const base = {
+    label: 'Home',
+    street: 'Jl. Gelora 1',
+    recipientName: 'Alice',
+    phone: '081234567890',
+    province: { id: '31' },
+    city: { id: '3171' },
+    district: { id: '317107' },
+  };
+
+  it('accepts a 10 digit code above the 32 bit integer limit', () => {
+    expect(addressSchema.safeParse({ ...base, subDistrict: { id: '3171071001' } }).success).toBe(true);
+  });
+
+  it.each(['31710710011', '31.71', 'abc', '', '-1'])('rejects the id "%s"', (id) => {
+    expect(addressSchema.safeParse({ ...base, subDistrict: { id } }).success).toBe(false);
   });
 });

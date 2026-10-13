@@ -13,7 +13,7 @@ export interface RegionListResponse {
 const cache = createTtlCache<RegionListResponse>(ONE_HOUR_MS);
 
 function toResponse(records: RegionRecord[]): RegionListResponse {
-  return { items: records.map((record) => ({ id: String(record.id), name: record.name })) };
+  return { items: records.map((record) => ({ id: record.id, name: record.name })) };
 }
 
 async function cached(
@@ -34,15 +34,15 @@ async function cached(
 const listProvinces = () => cached('provinces', regionRepository.listProvinces, 'Province not found.');
 
 const listCities = (provinceId: string) =>
-  cached(`cities:${provinceId}`, () => regionRepository.listCities(Number(provinceId)), 'Province not found.');
+  cached(`cities:${provinceId}`, () => regionRepository.listCities(provinceId), 'Province not found.');
 
 const listDistricts = (cityId: string) =>
-  cached(`districts:${cityId}`, () => regionRepository.listDistricts(Number(cityId)), 'City not found.');
+  cached(`districts:${cityId}`, () => regionRepository.listDistricts(cityId), 'City not found.');
 
 const listSubDistricts = (districtId: string) =>
   cached(
     `sub-districts:${districtId}`,
-    () => regionRepository.listSubDistricts(Number(districtId)),
+    () => regionRepository.listSubDistricts(districtId),
     'District not found.',
   );
 

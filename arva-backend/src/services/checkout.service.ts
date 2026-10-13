@@ -53,10 +53,10 @@ async function setAddress(userId: number, input: AddressInput): Promise<DraftRes
   }
 
   const ids: RegionIds = {
-    provinceId: Number(input.province.id),
-    cityId: Number(input.city.id),
-    districtId: Number(input.district.id),
-    subDistrictId: Number(input.subDistrict.id),
+    provinceId: input.province.id,
+    cityId: input.city.id,
+    districtId: input.district.id,
+    subDistrictId: input.subDistrict.id,
   };
   const errors = checkRegionParents(ids, await regionRepository.findParents(ids));
   if (Object.keys(errors).length > 0) {

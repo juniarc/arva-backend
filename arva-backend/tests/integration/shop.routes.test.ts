@@ -28,8 +28,13 @@ describe('GET /api/shops/:slug', () => {
         name: "Shop's Name",
         city: 'Jakarta',
         logoUrl: '/images/dummy/shop-logo-placeholder.jpg',
+        description: '',
+        // No hours are saved for this fixture shop, so the API returns 00:00 and 00:00.
+        operatingHours: { open: '00:00', close: '00:00' },
         rating: { average: 3.4, ratingCount: 212 },
         productCount: 2,
+        isOwner: false,
+        ownerDetails: null,
       },
     });
   });
@@ -45,7 +50,7 @@ describe('GET /api/shops/:slug', () => {
   it('does not expose the owner', async () => {
     const res = await request(app).get('/api/shops/shops-name');
 
-    expect(JSON.stringify(res.body)).not.toMatch(/owner|userId|email/i);
+    expect(JSON.stringify(res.body)).not.toMatch(/ownerId|userId|email|phone/i);
   });
 
   it('returns 404 for an unknown shop', async () => {

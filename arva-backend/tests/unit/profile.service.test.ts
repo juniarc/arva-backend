@@ -67,10 +67,10 @@ describe('toProfileResponse', () => {
         address: {
           street: 'Jl. Mawar 1',
           zipCode: '12345',
-          subDistrict: { id: 4, name: 'Gunung' },
-          district: { id: 3, name: 'Kebayoran Baru' },
-          city: { id: 2, name: 'Jakarta Selatan' },
-          province: { id: 1, name: 'DKI Jakarta' },
+          subDistrict: { id: '3171071001', name: 'Gelora' },
+          district: { id: '317107', name: 'Tanah Abang' },
+          city: { id: '3171', name: 'Kota Administrasi Jakarta Pusat' },
+          province: { id: '31', name: 'DKI Jakarta' },
         },
       }),
     );
@@ -78,10 +78,10 @@ describe('toProfileResponse', () => {
     expect(response.address).toEqual({
       street: 'Jl. Mawar 1',
       zipCode: '12345',
-      subDistrict: { id: '4', name: 'Gunung' },
-      district: { id: '3', name: 'Kebayoran Baru' },
-      city: { id: '2', name: 'Jakarta Selatan' },
-      province: { id: '1', name: 'DKI Jakarta' },
+      subDistrict: { id: '3171071001', name: 'Gelora' },
+      district: { id: '317107', name: 'Tanah Abang' },
+      city: { id: '3171', name: 'Kota Administrasi Jakarta Pusat' },
+      province: { id: '31', name: 'DKI Jakarta' },
     });
   });
 
@@ -177,17 +177,17 @@ describe('profileService.updateProfile', () => {
 describe('profileService.upsertAddress', () => {
   const address = {
     street: 'Jl. Mawar 1',
-    subDistrict: { id: '4' },
-    district: { id: '3' },
-    city: { id: '2' },
-    province: { id: '1' },
+    subDistrict: { id: '3171071001' },
+    district: { id: '317107' },
+    city: { id: '3171' },
+    province: { id: '31' },
     zipCode: '12345',
   };
   const consistent = {
-    province: { id: 1 },
-    city: { provinceId: 1 },
-    district: { cityId: 2 },
-    subDistrict: { districtId: 3 },
+    province: { id: '31' },
+    city: { provinceId: '31' },
+    district: { cityId: '3171' },
+    subDistrict: { districtId: '317107' },
   };
 
   it('saves the address after the region chain checks out', async () => {
@@ -198,15 +198,15 @@ describe('profileService.upsertAddress', () => {
     expect(fakeTx.upsertAddress).toHaveBeenCalledWith(USER, {
       street: 'Jl. Mawar 1',
       zipCode: '12345',
-      provinceId: 1,
-      cityId: 2,
-      districtId: 3,
-      subDistrictId: 4,
+      provinceId: '31',
+      cityId: '3171',
+      districtId: '317107',
+      subDistrictId: '3171071001',
     });
   });
 
   it('rejects a city from another province with errors.city and saves nothing', async () => {
-    fakeTx.findRegionParents.mockResolvedValue({ ...consistent, city: { provinceId: 9 } });
+    fakeTx.findRegionParents.mockResolvedValue({ ...consistent, city: { provinceId: '32' } });
 
     const error = await rejection(profileService.upsertAddress(USER, address));
 

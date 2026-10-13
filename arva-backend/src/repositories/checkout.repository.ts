@@ -53,10 +53,10 @@ export interface DraftAddressData {
   street: string;
   recipientName: string;
   phone: string;
-  provinceId: number;
-  cityId: number;
-  districtId: number;
-  subDistrictId: number;
+  provinceId: string;
+  cityId: string;
+  districtId: string;
+  subDistrictId: string;
 }
 
 // The steps the service takes inside one database transaction.
