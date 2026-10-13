@@ -62,6 +62,7 @@ model Shop {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   products     Product[]
 
+  @@index([city], map: "shops_city_idx")
   @@map("shops")
 }
 
@@ -90,6 +91,10 @@ model Product {
 
   @@index([categoryId])
   @@index([shopId])
+  // Support the list sorts and the rating filter. id is the tie-breaker.
+  @@index([isActive, soldCount(sort: Desc), id], map: "products_is_active_sold_count_id_idx")
+  @@index([isActive, createdAt(sort: Desc), id(sort: Desc)], map: "products_is_active_created_at_id_idx")
+  @@index([isActive, ratingTenths], map: "products_is_active_rating_tenths_idx")
   @@map("products")
 }
 
@@ -111,6 +116,8 @@ model ProductVariant {
 
   @@unique([productId, label])
   @@index([productId])
+  // Lowest-price lookups for the price filters.
+  @@index([productId, price], map: "product_variants_product_id_price_idx")
   @@map("product_variants")
 }
 

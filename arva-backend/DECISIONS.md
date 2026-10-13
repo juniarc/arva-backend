@@ -123,3 +123,21 @@ Reason: the cart page groups items by shop. Order is shop name, product name, pr
 
 **CONTRACT CHANGE: new `PATCH /cart/items/:id` and `DELETE /cart/items`.**
 Reason: cart page quantity and remove actions. PATCH sets an absolute quantity (1 to 99) and runs in a transaction that locks the variant row, like add. Quantity 0 is a 400, since removing is DELETE. DELETE takes a JSON body, so clients must send `Content-Type: application/json`. It ignores ids that do not belong to the user, so the answer never reveals which ids exist. Stock is still checked per cart and not reserved.
+
+**CONTRACT CHANGE: `GET /products` adds `minPrice`, `maxPrice`, `minRating`, `city` and the sort `relevance`. Its query is now strict: unknown keys return 400 (it was lenient).**
+Reason: the products page filters. The frontend sends only known parameters. `popular` now breaks soldCount ties by rating, and the price sorts break ties by id, so pages never repeat or skip a product (`/products/recommended` uses `popular`, so its tie order changes the same way).
+
+**CONTRACT CHANGE: new `GET /products/cities`.**
+Reason: fills the city filter. Cached 60 seconds in memory per server instance, so a new city can take up to a minute to appear.
+
+**The lowest-price filters use Prisma relation filters, not a `fromPrice` column or raw SQL.**
+Reason: lowest price >= min is the same as "every variant >= min", and lowest price <= max is the same as "some variant <= max". Price sorting still runs in the service (see the earlier decision). Add a `fromPrice` column only when the catalog is large enough to need database sorting by price.
+
+**`relevance` is a placeholder: soldCount, then ratingCount, then id.**
+Reason: there is no text search yet. The formula lives in `lib/product-sort.ts` only.
+
+**`city` is an exact, case-sensitive match and an unknown city returns an empty list.**
+Reason: city values are stored as typed ("Jakarta", "Kab. B"), and the city list can change. The design shows "DKI Jakarta", but the data says "Jakarta". Not normalized. Decide later whether to change the seed or the design.
+
+**`minRating` is applied to `ratingTenths` (stars x 10). The prompt's `ratingAverage` does not exist as a column.**
+Reason: ratings are stored as integer tenths (see the earlier decision). The index is on `(isActive, ratingTenths)`.

@@ -18,4 +18,15 @@ function findBySlug(slug: string): Promise<ShopRecord | null> {
   return prisma.shop.findUnique({ where: { slug }, select: shopSelect });
 }
 
-export const shopRepository = { findBySlug };
+// Cities of shops that have at least one product the public list can show
+// (active, with a variant). Only the city column is read.
+async function findCitiesWithActiveProducts(): Promise<string[]> {
+  const shops = await prisma.shop.findMany({
+    where: { products: { some: { isActive: true, variants: { some: {} } } } },
+    select: { city: true },
+    distinct: ['city'],
+  });
+  return shops.map((shop) => shop.city);
+}
+
+export const shopRepository = { findBySlug, findCitiesWithActiveProducts };

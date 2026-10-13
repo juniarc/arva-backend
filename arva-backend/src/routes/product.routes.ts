@@ -7,8 +7,9 @@ export function createProductRouter(): Router {
 
   router.use(createPublicReadLimiter());
   router.get('/', productController.list);
-  // Must stay above '/:slug', or Express would read "recommended" as a product slug.
+  // Must stay above '/:slug', or Express would read "recommended" or "cities" as a product slug.
   router.get('/recommended', productController.getRecommended);
+  router.get('/cities', productController.getCities);
   router.get('/:slug/reviews', productController.getReviews);
   router.get('/:slug', productController.getBySlug);
 

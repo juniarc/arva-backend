@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotFoundError, ValidationError } from '../../src/lib/errors.js';
+import { productListQuerySchema } from '../../src/schemas/product.schema.js';
 import type { ProductListRecord } from '../../src/repositories/product.repository.js';
 
 const { fakeProducts, fakeCategories, fakeShops, fakeReviews } = vi.hoisted(() => ({
@@ -170,6 +171,99 @@ describe('productService.listProducts', () => {
 
     expect(error).toBeInstanceOf(ValidationError);
     expect((error as ValidationError).errors).toEqual({ shop: 'Shop not found.' });
+  });
+});
+
+describe('productService.listProducts filters', () => {
+  it('passes the price, rating and city filters to the repository (rating as tenths)', async () => {
+    fakeProducts.findMany.mockResolvedValue([]);
+    fakeProducts.count.mockResolvedValue(0);
+
+    await productService.listProducts({
+      ...defaultQuery,
+      minPrice: 1000,
+      maxPrice: 5000,
+      minRating: 4,
+      city: 'Jakarta',
+      sort: 'relevance',
+    });
+
+    const expectedFilter = { minPrice: 1000, maxPrice: 5000, minRatingTenths: 40, city: 'Jakarta' };
+    expect(fakeProducts.findMany).toHaveBeenCalledWith(expect.objectContaining(expectedFilter), 'relevance', 0, 12);
+    expect(fakeProducts.count).toHaveBeenCalledWith(expect.objectContaining(expectedFilter));
+  });
+
+  it('rejects minPrice above maxPrice with errors.minPrice', async () => {
+    const error = await productService
+      .listProducts({ ...defaultQuery, minPrice: 5000, maxPrice: 1000 })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).message).toBe('The minimum price cannot be greater than the maximum price.');
+    expect((error as ValidationError).errors).toEqual({
+      minPrice: 'The minimum price cannot be greater than the maximum price.',
+    });
+    expect(fakeProducts.findMany).not.toHaveBeenCalled();
+  });
+
+  it('accepts minPrice equal to maxPrice', async () => {
+    fakeProducts.findMany.mockResolvedValue([]);
+    fakeProducts.count.mockResolvedValue(0);
+
+    await expect(
+      productService.listProducts({ ...defaultQuery, minPrice: 1000, maxPrice: 1000 }),
+    ).resolves.toBeDefined();
+  });
+
+  it('breaks price ties by id ascending', async () => {
+    fakeProducts.findAll.mockResolvedValue([
+      buildProduct(3, 'C', [{ price: 1000 }]),
+      buildProduct(1, 'A', [{ price: 1000 }]),
+      buildProduct(2, 'B', [{ price: 500 }]),
+    ]);
+
+    const asc = await productService.listProducts({ ...defaultQuery, sort: 'price_asc' });
+    const desc = await productService.listProducts({ ...defaultQuery, sort: 'price_desc' });
+
+    expect(asc.products.map((p) => p.slug)).toEqual(['b', 'a', 'c']);
+    expect(desc.products.map((p) => p.slug)).toEqual(['a', 'c', 'b']);
+  });
+});
+
+describe('productListQuerySchema', () => {
+  const parse = (query: Record<string, string>) => productListQuerySchema.safeParse(query);
+
+  it('parses the new parameters', () => {
+    const result = parse({ minPrice: '1000', maxPrice: '5000', minRating: '4', city: '  Jakarta ', sort: 'relevance' });
+
+    expect(result.success && result.data).toMatchObject({
+      minPrice: 1000,
+      maxPrice: 5000,
+      minRating: 4,
+      city: 'Jakarta',
+      sort: 'relevance',
+    });
+  });
+
+  it.each(['0', '6', 'abc', '3.5', ''])('rejects minRating "%s"', (value) => {
+    expect(parse({ minRating: value }).success).toBe(false);
+  });
+
+  it.each(['abc', '-1', '1.5', '', '99999999999'])('rejects minPrice and maxPrice "%s"', (value) => {
+    expect(parse({ minPrice: value }).success).toBe(false);
+    expect(parse({ maxPrice: value }).success).toBe(false);
+  });
+
+  it('accepts a price of 0', () => {
+    expect(parse({ minPrice: '0' }).success).toBe(true);
+  });
+
+  it.each(['', '   '])('rejects an empty or whitespace-only city "%s"', (value) => {
+    expect(parse({ city: value }).success).toBe(false);
+  });
+
+  it('rejects unknown query keys', () => {
+    expect(parse({ foo: 'bar' }).success).toBe(false);
   });
 });
 

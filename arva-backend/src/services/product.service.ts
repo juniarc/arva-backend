@@ -1,6 +1,7 @@
 import { NotFoundError, ValidationError } from '../lib/errors.js';
 import { toImageUrl } from '../lib/imageUrl.js';
 import { calculateDiscountPercent } from '../lib/money.js';
+import { comparePrice, isPriceSort } from '../lib/product-sort.js';
 import { buildPagination, type Pagination } from '../lib/pagination.js';
 import { tenthsToRating, toShopRating, type ShopRatingResponse } from '../lib/rating.js';
 import { categoryRepository } from '../repositories/category.repository.js';
@@ -187,22 +188,36 @@ async function listProducts(query: ProductListQuery): Promise<ProductListRespons
     throw new ValidationError('Please fix the highlighted fields.', { shop: 'Shop not found.' });
   }
 
+  if (
+    query.minPrice !== undefined &&
+    query.maxPrice !== undefined &&
+    query.minPrice > query.maxPrice
+  ) {
+    const message = 'The minimum price cannot be greater than the maximum price.';
+    throw new ValidationError(message, { minPrice: message });
+  }
+
   const filter: ProductFilter = {
     categorySlug: query.category,
     shopSlug: query.shop,
     excludeId: query.exclude === undefined ? undefined : Number(query.exclude),
     discountOnly: query.discount,
+    minPrice: query.minPrice,
+    maxPrice: query.maxPrice,
+    minRatingTenths: query.minRating === undefined ? undefined : query.minRating * 10,
+    city: query.city,
   };
   const skip = (query.page - 1) * query.limit;
 
-  if (query.sort === 'price_asc' || query.sort === 'price_desc') {
+  if (isPriceSort(query.sort)) {
     // Price sorting happens here because it needs each product's lowest variant price.
     // Fine for a small catalog. Revisit if the catalog grows to many thousands of products.
-    const all = (await productRepository.findAll(filter)).map(toProductResponse);
-    const direction = query.sort === 'price_asc' ? 1 : -1;
-    all.sort((a, b) => (a.price - b.price) * direction);
+    const compare = comparePrice(query.sort);
+    const all = (await productRepository.findAll(filter))
+      .map((record) => ({ id: record.id, price: findLowestPriceVariant(record).price, record }))
+      .sort(compare);
     return {
-      products: all.slice(skip, skip + query.limit),
+      products: all.slice(skip, skip + query.limit).map((item) => toProductResponse(item.record)),
       pagination: buildPagination(query.page, query.limit, all.length),
     };
   }

@@ -149,10 +149,14 @@ Catalog (public):
 
 - `GET /home`: `{ banners: { carousel, promoStrips, sideBanners, verticalBanners }, sections: { popular, fruits, equipments } }`. A banner is `{ id, title, subtitle, buttonLabel, linkUrl, imageUrl }`.
 - `GET /categories`: `{ categories: [{ id, slug, name, iconKey }] }`, ordered by sortOrder.
-- `GET /products?category=&shop=&exclude=&sort=&discount=&page=&limit=` (lenient: unknown query keys are ignored)
+- `GET /products?category=&shop=&exclude=&minPrice=&maxPrice=&minRating=&city=&sort=&discount=&page=&limit=` (strict: unknown query keys give 400)
   - `shop`: a shop slug (unknown: 400 with `errors.shop`). `exclude`: a numeric product id to leave out.
-  - `sort`: `popular` (default), `newest`, `price_asc`, `price_desc`. `discount`: `true` or `false`. `page` default 1. `limit` default 12, max 48.
+  - `minPrice`, `maxPrice`: whole IDR, 0 or more, compared with the product's lowest variant price. `minPrice` above `maxPrice` gives 400 with `errors.minPrice`.
+  - `minRating`: whole number 1 to 5. Unrated products are excluded when it is set.
+  - `city`: trimmed, 1 to 100 characters, exact and case-sensitive match on the shop city. An unknown city gives an empty list, not 400.
+  - `sort`: `popular` (default: soldCount, rating, id), `newest` (createdAt, id desc), `price_asc`, `price_desc` (lowest price, then id), `relevance` (placeholder: soldCount, ratingCount, id). Every sort ends with id. `discount`: `true` or `false`. `page` default 1. `limit` default 12, max 48.
   - 200: `{ products: [Product], pagination: { page, limit, total, totalPages } }`. 400 for an unknown category or shop, or invalid values.
+- `GET /products/cities`: `{ cities: [string] }`. Distinct shop cities that have an active product, sorted A to Z ignoring case. Cached 60 seconds per server instance. Registered before `/products/:slug`, so a product cannot use the slug `cities`.
 - `GET /products/recommended?exclude=&excludeShop=&limit=` (strict: unknown keys give 400). Best sellers, leaving out one product id and every product of one shop. `limit` default 6, max 24. 200: `{ products: [Product] }`.
 - `GET /products/:slug`: 200 `{ product: ProductDetail }`. 404 `{ message: "Product not found." }`.
 - `GET /products/:slug/reviews?page=&limit=` (strict). `limit` default 10, max 50. 200: `{ reviews: [Review], pagination }`. 404 for an unknown or inactive product.

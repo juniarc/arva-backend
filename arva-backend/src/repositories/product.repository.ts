@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { toDatabaseOrder, type DatabaseSort } from '../lib/product-sort.js';
 
 // Every query uses `select`, so only the listed columns ever leave the repository.
 // isActive, createdAt and the shop's ownerId are never selected.
@@ -52,9 +53,14 @@ export interface ProductFilter {
   excludeShopSlug?: string;
   excludeId?: number;
   discountOnly: boolean;
+  // Compared with the LOWEST variant price of the product.
+  minPrice?: number;
+  maxPrice?: number;
+  // Rating in tenths (40 = 4.0 stars).
+  minRatingTenths?: number;
+  // Exact, case-sensitive match against the shop city.
+  city?: string;
 }
-
-export type DatabaseSort = 'popular' | 'newest';
 
 // Only active products that have at least one variant are ever returned.
 function buildWhere(filter: ProductFilter): Prisma.ProductWhereInput {
@@ -74,13 +80,23 @@ function buildWhere(filter: ProductFilter): Prisma.ProductWhereInput {
   if (filter.excludeId !== undefined) {
     conditions.push({ id: { not: filter.excludeId } });
   }
+  // The lowest price is >= minPrice exactly when EVERY variant is >= minPrice,
+  // and <= maxPrice exactly when SOME variant is <= maxPrice. No raw SQL needed.
+  if (filter.minPrice !== undefined) {
+    conditions.push({ variants: { every: { price: { gte: filter.minPrice } } } });
+  }
+  if (filter.maxPrice !== undefined) {
+    conditions.push({ variants: { some: { price: { lte: filter.maxPrice } } } });
+  }
+  // Products without ratings have 0 tenths, so any minimum of 1 star or more excludes them.
+  if (filter.minRatingTenths !== undefined) {
+    conditions.push({ ratingTenths: { gte: filter.minRatingTenths } });
+  }
+  if (filter.city !== undefined) {
+    conditions.push({ shop: { city: filter.city } });
+  }
   return { AND: conditions };
 }
-
-const orderBySort: Record<DatabaseSort, Prisma.ProductOrderByWithRelationInput[]> = {
-  popular: [{ soldCount: 'desc' }, { id: 'asc' }],
-  newest: [{ createdAt: 'desc' }, { id: 'desc' }],
-};
 
 function findMany(
   filter: ProductFilter,
@@ -90,7 +106,7 @@ function findMany(
 ): Promise<ProductListRecord[]> {
   return prisma.product.findMany({
     where: buildWhere(filter),
-    orderBy: orderBySort[sort],
+    orderBy: toDatabaseOrder(sort),
     skip,
     take,
     select: listSelect,
@@ -102,7 +118,7 @@ function findMany(
 function findAll(filter: ProductFilter): Promise<ProductListRecord[]> {
   return prisma.product.findMany({
     where: buildWhere(filter),
-    orderBy: orderBySort.popular,
+    orderBy: toDatabaseOrder('popular'),
     select: listSelect,
   });
 }

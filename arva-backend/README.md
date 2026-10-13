@@ -138,6 +138,18 @@ curl -s "$API/products?exclude=1"                          # without product id 
 curl -s "$API/products/recommended?exclude=1&excludeShop=shops-name&limit=4"
 ```
 
+### Product filters and cities
+
+```
+curl -s "$API/products?minPrice=1000&maxPrice=5000"
+curl -s "$API/products?minRating=4"
+curl -s "$API/products?city=Jakarta"                 # exact, case-sensitive
+curl -s "$API/products?sort=relevance"
+curl -s "$API/products?minPrice=5000&maxPrice=1000"  # 400, errors.minPrice
+curl -s "$API/products?foo=bar"                      # 400, unknown parameter
+curl -s $API/products/cities                         # { "cities": [...] }
+```
+
 ### Cart
 
 ```

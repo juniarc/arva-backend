@@ -218,3 +218,48 @@ export async function createCartRow(username: string, variantId: number, quantit
   });
   return item.id;
 }
+
+export async function createShop(slug: string, city: string): Promise<number> {
+  const shop = await prisma.shop.create({ data: { slug, name: slug, city }, select: { id: true } });
+  return shop.id;
+}
+
+interface ExtraProduct {
+  slug: string;
+  shopId: number;
+  // One variant is created for each price.
+  prices: number[];
+  ratingTenths?: number;
+  ratingCount?: number;
+  soldCount?: number;
+  isActive?: boolean;
+}
+
+// Adds a "fruits" product on top of seedFixtures(). Returns the product id.
+export async function createExtraProduct(options: ExtraProduct): Promise<number> {
+  const category = await prisma.category.findUniqueOrThrow({ where: { slug: 'fruits' }, select: { id: true } });
+  const product = await prisma.product.create({
+    data: {
+      slug: options.slug,
+      name: options.slug,
+      categoryId: category.id,
+      shopId: options.shopId,
+      imageUrl: `/images/dummy/${options.slug}.jpg`,
+      ratingTenths: options.ratingTenths ?? 0,
+      ratingCount: options.ratingCount ?? 0,
+      soldCount: options.soldCount ?? 0,
+      isActive: options.isActive ?? true,
+      variants: {
+        create: options.prices.map((price, index) => ({
+          label: `v${index}`,
+          unit: 'kg',
+          price,
+          stock: 10,
+          position: index,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+  return product.id;
+}
