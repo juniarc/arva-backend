@@ -5,6 +5,7 @@ import { prisma } from '../../src/lib/prisma.js';
 export async function resetDatabase(): Promise<void> {
   await prisma.$transaction([
     prisma.cartItem.deleteMany(),
+    prisma.wishlistItem.deleteMany(),
     prisma.review.deleteMany(),
     prisma.productImage.deleteMany(),
     prisma.productVariant.deleteMany(),
@@ -262,4 +263,17 @@ export async function createExtraProduct(options: ExtraProduct): Promise<number>
     select: { id: true },
   });
   return product.id;
+}
+
+// Inserts a wishlist row directly. Returns the wishlist item id.
+export async function createWishlistRow(username: string, productId: number, addedAt?: Date): Promise<number> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { usernameLower: username.toLowerCase() },
+    select: { id: true },
+  });
+  const item = await prisma.wishlistItem.create({
+    data: { userId: user.id, productId, ...(addedAt ? { addedAt } : {}) },
+    select: { id: true },
+  });
+  return item.id;
 }

@@ -6,6 +6,7 @@ import { healthRouter } from './health.routes.js';
 import { homeRouter } from './home.routes.js';
 import { createProductRouter } from './product.routes.js';
 import { createShopRouter } from './shop.routes.js';
+import { createWishlistRouter } from './wishlist.routes.js';
 
 // app.ts mounts this router at /api.
 export function createApiRouter(): Router {
@@ -18,6 +19,7 @@ export function createApiRouter(): Router {
   router.use('/products', createProductRouter());
   router.use('/shops', createShopRouter());
   router.use('/cart', createCartRouter());
+  router.use('/wishlist', createWishlistRouter());
 
   return router;
 }

@@ -22,6 +22,7 @@ model User {
   shops         Shop[]
   cartItems     CartItem[]
   reviews       Review[]
+  wishlistItems WishlistItem[]
 
   @@map("users")
 }
@@ -88,6 +89,7 @@ model Product {
   variants     ProductVariant[]
   images       ProductImage[]
   reviews      Review[]
+  wishlistItems WishlistItem[]
 
   @@index([categoryId])
   @@index([shopId])
@@ -184,4 +186,18 @@ model Review {
 
   @@index([productId, createdAt])
   @@map("reviews")
+}
+
+model WishlistItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int      @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  // A product appears at most once in a user's wishlist. This makes "add" idempotent.
+  @@unique([userId, productId])
+  @@index([userId, addedAt])
+  @@map("wishlist_items")
 }

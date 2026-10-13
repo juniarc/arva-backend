@@ -190,7 +190,21 @@ Cart (requires `Authorization: Bearer <token>`, 401 otherwise):
   - 200: the full cart after removal. Ids that belong to other users or do not exist are ignored, with no error.
   - 400: validation (`errors.itemIds`). 429 after 60 requests per minute per user.
 
-Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/wishlist`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
+Wishlist (requires `Authorization: Bearer <token>`, 401 otherwise):
+
+- `GET /wishlist`: `{ items: [{ id, addedAt, product }], itemCount }`, newest first (addedAt, then id, descending).
+  - `product`: `{ id, slug, name, categorySlug, categoryName, price, originalPrice, discountPercent, rating, soldCount, city, imageUrl, shop: { slug, name }, isAvailable }`. Price fields come from the lowest variant, read now (no snapshot). `rating` is a number. `isAvailable` is true when any variant has stock.
+  - Items whose product is inactive are left out of `items` and `itemCount`. Their rows are not deleted.
+- `POST /wishlist`
+  - Body: `{ productId: string }` (numeric). Unknown keys are rejected.
+  - 200: the full wishlist. Idempotent: adding a product that is already there changes nothing. Stock does not matter.
+  - 400: validation (`errors.productId`). 404: `{ message: "Product not found." }` (unknown or inactive). 429 after 60 requests per minute per user.
+- `DELETE /wishlist/items`
+  - Body: `{ itemIds: string[] }`, 1 to 100 numeric strings, duplicates removed. Unknown keys are rejected. The client must send `Content-Type: application/json`.
+  - 200: the full wishlist after removal. Ids that belong to other users or do not exist are ignored, with no error.
+  - 400: validation (`errors.itemIds`). 429 after 60 requests per minute per user.
+
+Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
 
 If a backend change is needed, update this section and `docs/DECISIONS.md` first, then the code.
 

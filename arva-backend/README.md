@@ -206,3 +206,25 @@ curl -s -X DELETE $API/cart/items -H "Authorization: Bearer $TOKEN" -H 'Content-
 # No token: 401
 curl -s -X DELETE $API/cart/items -H 'Content-Type: application/json' -d '{"itemIds":["1"]}'
 ```
+
+### Wishlist
+
+```
+curl -s $API/wishlist                                      # 401
+curl -s $API/wishlist -H "Authorization: Bearer $TOKEN"    # 200, empty at first
+
+PRODUCT=$(curl -s $API/products/bali-banana-fruit | node -e "console.log(JSON.parse(require('fs').readFileSync(0)).product.id)")
+curl -s -X POST $API/wishlist -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"productId\":\"$PRODUCT\"}"   # 200, full list
+curl -s -X POST $API/wishlist -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"productId\":\"$PRODUCT\"}"   # 200, same list, no duplicate
+curl -s -X POST $API/wishlist -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"productId":"999999"}'          # 404
+
+ITEM=$(curl -s $API/wishlist -H "Authorization: Bearer $TOKEN" | node -e "console.log(JSON.parse(require('fs').readFileSync(0)).items[0].id)")
+curl -s -X DELETE $API/wishlist/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"itemIds\":[\"$ITEM\"]}"   # 200, remaining list
+# An id of another user (or unknown): 200, nothing removed
+curl -s -X DELETE $API/wishlist/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":["999999"]}'
+# Empty list: 400 with errors.itemIds
+curl -s -X DELETE $API/wishlist/items -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":[]}'
+# No token: 401
+curl -s -X POST $API/wishlist -H 'Content-Type: application/json' -d '{"productId":"1"}'
+curl -s -X DELETE $API/wishlist/items -H 'Content-Type: application/json' -d '{"itemIds":["1"]}'
+```

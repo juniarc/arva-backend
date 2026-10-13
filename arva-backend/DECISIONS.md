@@ -141,3 +141,10 @@ Reason: city values are stored as typed ("Jakarta", "Kab. B"), and the city list
 
 **`minRating` is applied to `ratingTenths` (stars x 10). The prompt's `ratingAverage` does not exist as a column.**
 Reason: ratings are stored as integer tenths (see the earlier decision). The index is on `(isActive, ratingTenths)`.
+
+**CONTRACT CHANGE: new table `wishlist_items` and new endpoints `GET /wishlist`, `POST /wishlist`, `DELETE /wishlist/items`.**
+Reason: wishlist feature. A unique constraint on (userId, productId) makes add idempotent: the service tries the insert and treats a unique violation as "already there", so two parallel adds leave one row. POST and DELETE return the full list so the frontend can replace its state without another request. DELETE ignores ids that do not belong to the user, so the response never reveals which ids exist.
+
+**Wishlist rows hold no price or stock snapshot. The product's current data is read when the list is returned.**
+Reason: a wishlist is a bookmark, not an offer. Items of inactive products are hidden from the list and count but not deleted, so they return if the product is activated again. `rating` is a number here, as in the product list (the product detail uses an object).
+
