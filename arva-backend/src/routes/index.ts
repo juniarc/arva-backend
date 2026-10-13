@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { createAuthRouter } from './auth.routes.js';
 import { createCartRouter } from './cart.routes.js';
+import { createCheckoutRouter } from './checkout.routes.js';
 import { categoryRouter } from './category.routes.js';
 import { healthRouter } from './health.routes.js';
 import { homeRouter } from './home.routes.js';
 import { createProductRouter } from './product.routes.js';
+import { createProfileRouter } from './profile.routes.js';
+import { createRegionRouter } from './region.routes.js';
 import { createShopRouter } from './shop.routes.js';
 import { createWishlistRouter } from './wishlist.routes.js';
 
@@ -20,6 +23,9 @@ export function createApiRouter(): Router {
   router.use('/shops', createShopRouter());
   router.use('/cart', createCartRouter());
   router.use('/wishlist', createWishlistRouter());
+  router.use('/checkout', createCheckoutRouter());
+  router.use('/regions', createRegionRouter());
+  router.use('/profile', createProfileRouter());
 
   return router;
 }

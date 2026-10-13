@@ -204,6 +204,33 @@ Wishlist (requires `Authorization: Bearer <token>`, 401 otherwise):
   - 200: the full wishlist after removal. Ids that belong to other users or do not exist are ignored, with no error.
   - 400: validation (`errors.itemIds`). 429 after 60 requests per minute per user.
 
+Regions (public, 120 requests per minute per IP, cached 1 hour per server instance; unknown parents are not cached):
+
+- `GET /regions/provinces`: `{ items: [{ id, name }] }`, sorted by name.
+- `GET /regions/provinces/:id/cities`, `GET /regions/cities/:id/districts`, `GET /regions/districts/:id/sub-districts`: same shape. 404 `{ message: "Province not found." | "City not found." | "District not found." }`. 400 when `:id` is not numeric.
+- The seeded regions are a small development subset. The full Indonesian list is loaded later.
+
+Checkout (requires `Authorization: Bearer <token>`, 401 otherwise). One draft per user:
+
+- `POST /checkout`: body `{ itemIds: string[] }`, 1 to 100 numeric cart item ids of this user, duplicates removed. Unknown keys are rejected. Replaces any existing draft (the new draft has no address). 429 after 30 requests per minute per user.
+  - 400 `{ message: "Some items are no longer in your cart.", errors: { itemIds } }` for any id that is not in this user's cart (other users' ids look the same as unknown ones).
+  - 409 `PRODUCT_UNAVAILABLE` (inactive product), `OUT_OF_STOCK` (`"<product name> is out of stock."`), `INSUFFICIENT_STOCK` (`"Only <n> left in stock."`). Stock is checked, not reserved.
+- `GET /checkout`: the draft. 404 `{ message: "Checkout session not found." }` when there is none.
+- `PUT /checkout/address`: body `{ label (1-30), province: { id }, city: { id }, district: { id }, subDistrict: { id }, street (1-200), recipientName (1-30), phone (digits only, 8-15) }`, strict, all required. Replaces the whole address. 400 with a field error for a bad value or a region that is not in its parent (for example `errors.city`). 404 when there is no draft. 429 after 30 requests per minute per user.
+- Draft response (all three endpoints): `{ items: [{ id, quantity, product: { id, slug, name, imageUrl, shop: { slug, name } }, variant: { id, label, unit, price, stock } }], unavailableItemCount, address: { label, street, recipientName, phone, province, city, district, subDistrict } | null, damageProtection: { enabled, fee }, shipping, voucher, paymentMethod, summary: { productSubtotal, shippingSubtotal, buyerServiceFee, handlingFee, damageProtectionFee, discount, total } }`. Each region is `{ id, name }`.
+  - `items` come from the cart now (current price, quantity and stock), ordered like `GET /cart`. Items of inactive products are left out and counted in `unavailableItemCount`.
+  - `address` is null unless all eight address fields are set.
+  - Placeholders for later tasks: `shipping`, `voucher` and `paymentMethod` are always null, and `damageProtection.fee`, `shippingSubtotal`, `buyerServiceFee`, `handlingFee`, `damageProtectionFee` and `discount` are always 0.
+
+Profile (requires `Authorization: Bearer <token>`, 401 otherwise):
+
+- `GET /profile`: `{ user: { username, name, email, phone, photoUrl }, address: { street, subDistrict, district, city, province, zipCode } | null }`. Each region is `{ id, name }`. Read from the database, not the token. `photoUrl` is null until photo upload exists.
+- `PUT /profile`: body `{ name (1-50), username (register rules), email (register rules, saved lowercase), phone: string | null }`, strict, all four keys required. `phone` is an optional `+` then 8 to 15 digits, or null to clear it. 200: the full profile.
+  - 409 `{ message: "This username is already taken.", field: "username" }` or `{ message: "This email is already used.", field: "email" }`. Username wins when both are taken. Keeping your own username or email is not a conflict. Usernames compare case-insensitively.
+  - 400: validation (`errors.<field>`). 429 after 20 requests per minute per user.
+- `PUT /profile/address`: body `{ street (1-200), subDistrict: { id }, district: { id }, city: { id }, province: { id }, zipCode (5 digits) }`, strict. Creates or replaces the one saved address. 200: the full profile. 400 with a field error for a bad value, an unknown region id, or a region that is not in its parent (for example `errors.city`). 429 after 20 requests per minute per user.
+- Not built: photo upload, password change, email verification. Changing the email takes effect immediately.
+
 Planned endpoint groups (no contract yet): `/shops`, `/shops/me`, `/products/mine`, `/orders`, `/vouchers`, `/reviews`. Each group gets a contract here before its feature begins.
 
 If a backend change is needed, update this section and `docs/DECISIONS.md` first, then the code.

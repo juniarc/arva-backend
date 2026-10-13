@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const MAX_PASSWORD_BYTES = 72; // bcrypt ignores everything after 72 bytes
 
-const username = z
+export const usernameRule = z
   .string({ error: 'Username is required.' })
   .trim()
   .min(1, 'Username is required.')
@@ -10,7 +10,7 @@ const username = z
   .max(30, 'Username must be at most 30 characters.')
   .regex(/^[A-Za-z0-9_]+$/, 'Username can only contain letters, numbers, and underscores.');
 
-const email = z
+export const emailRule = z
   .string({ error: 'Email is required.' })
   .trim()
   .toLowerCase()
@@ -29,7 +29,7 @@ const newPassword = z
   .regex(/[A-Za-z]/, 'Password must contain at least one letter.')
   .regex(/[0-9]/, 'Password must contain at least one number.');
 
-export const registerSchema = z.object({ username, email, password: newPassword });
+export const registerSchema = z.object({ username: usernameRule, email: emailRule, password: newPassword });
 
 // Login only checks that the fields are present. Format rules would leak policy and
 // block people whose old passwords do not match the current rules.

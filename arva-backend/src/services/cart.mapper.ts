@@ -1,4 +1,5 @@
 import { toImageUrl } from '../lib/imageUrl.js';
+import { compareCartLines, type CartLineKey } from '../lib/cart-order.js';
 import { calculateLineTotal } from '../lib/money.js';
 import type { CartItemRecord } from '../repositories/cart.repository.js';
 
@@ -23,18 +24,20 @@ export interface CartResponse {
   subtotal: number;
 }
 
-// Order: shop name, product name, product id, variant position, cart item id.
-// The product id and item id only break ties, so the order is always the same.
+// Order: see compareCartLines.
 function compareRecords(a: CartItemRecord, b: CartItemRecord): number {
-  const pa = a.variant.product;
-  const pb = b.variant.product;
-  return (
-    pa.shop.name.localeCompare(pb.shop.name, 'en') ||
-    pa.name.localeCompare(pb.name, 'en') ||
-    pa.id - pb.id ||
-    a.variant.position - b.variant.position ||
-    a.id - b.id
-  );
+  return compareCartLines(toLineKey(a), toLineKey(b));
+}
+
+function toLineKey(record: CartItemRecord): CartLineKey {
+  const product = record.variant.product;
+  return {
+    id: record.id,
+    shopName: product.shop.name,
+    productName: product.name,
+    productId: product.id,
+    variantPosition: record.variant.position,
+  };
 }
 
 // The cart shows the variant's CURRENT price. No price is copied into the cart row.

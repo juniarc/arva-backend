@@ -228,3 +228,51 @@ curl -s -X DELETE $API/wishlist/items -H "Authorization: Bearer $TOKEN" -H 'Cont
 curl -s -X POST $API/wishlist -H 'Content-Type: application/json' -d '{"productId":"1"}'
 curl -s -X DELETE $API/wishlist/items -H 'Content-Type: application/json' -d '{"itemIds":["1"]}'
 ```
+
+### Regions and checkout draft
+
+```
+curl -s $API/regions/provinces                          # no token needed
+curl -s $API/regions/provinces/1/cities
+curl -s $API/regions/cities/1/districts
+curl -s $API/regions/districts/1/sub-districts
+curl -s $API/regions/provinces/abc/cities               # 400
+curl -s $API/regions/provinces/999/cities               # 404
+
+curl -s $API/checkout                                   # 401
+curl -s $API/checkout -H "Authorization: Bearer $TOKEN" # 404 until a draft exists
+
+# Add something to the cart first, then draft it
+ITEM=$(curl -s -X POST $API/cart -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"variantId\":\"$VARIANT\",\"quantity\":2}" | node -e "console.log(JSON.parse(require('fs').readFileSync(0)).items[0].id)")
+curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"itemIds\":[\"$ITEM\"]}"
+curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":[]}'            # 400
+curl -s -X POST $API/checkout -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"itemIds":["999999"]}'  # 400
+
+# Address (ids 1 = DKI Jakarta, Jakarta Selatan, Kebayoran Baru, Gunung in the seed)
+curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"1"},"city":{"id":"1"},"district":{"id":"1"},"subDistrict":{"id":"1"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
+# City 3 (Kota Bandung) is not in province 1: 400 with errors.city
+curl -s -X PUT $API/checkout/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"label":"Home","province":{"id":"1"},"city":{"id":"3"},"district":{"id":"1"},"subDistrict":{"id":"1"},"street":"Jl. Mawar 1","recipientName":"Alice","phone":"081234567890"}'
+```
+
+### Profile
+
+```
+curl -s $API/profile                                    # 401
+curl -s $API/profile -H "Authorization: Bearer $TOKEN"  # 200, address null at first
+
+curl -s -X PUT $API/profile -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"name":"Alice Wonder","username":"alice","email":"alice@example.com","phone":"+6281234567890"}'
+# Another user's username: 409 with field "username"
+curl -s -X PUT $API/profile -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"name":"Alice","username":"bob","email":"alice@example.com","phone":null}'
+# Phone with a space: 400 with errors.phone
+curl -s -X PUT $API/profile -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"name":"Alice","username":"alice","email":"alice@example.com","phone":"+62 812"}'
+curl -s -X PUT $API/profile -H 'Content-Type: application/json' -d '{}'   # 401
+
+# Address (ids 1 = Gunung, Kebayoran Baru, Jakarta Selatan, DKI Jakarta in the seed)
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"1"},"province":{"id":"1"},"zipCode":"12110"}'
+# City 3 (Kota Bandung) is not in province 1: 400 with errors.city
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"3"},"province":{"id":"1"},"zipCode":"12110"}'
+# Zip "1234": 400 with errors.zipCode
+curl -s -X PUT $API/profile/address -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"street":"Jl. Mawar 1","subDistrict":{"id":"1"},"district":{"id":"1"},"city":{"id":"1"},"province":{"id":"1"},"zipCode":"1234"}'
+curl -s -X PUT $API/profile/address -H 'Content-Type: application/json' -d '{}'   # 401
+```
+

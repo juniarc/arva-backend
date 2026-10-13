@@ -39,7 +39,7 @@ A user can be a buyer and a seller at the same time. Sellers can buy from other 
 | 21 | Cart | Add to cart (with variant and quantity) | Buyer | Design pending | Figma: add to cart modal |
 | 22 | Cart | Cart page and cart drawer | Buyer | Design pending | Figma: cart |
 | 23 | Wishlist | Add and remove wishlist items | Buyer | Backend built, design pending | Figma: wishlist |
-| 24 | Checkout | Shipment: address and shipping option | Buyer | Design pending | Figma: shipment, address, shipping modal |
+| 24 | Checkout | Shipment: address and shipping option | Buyer | Backend partly built (draft and address), design pending | Figma: shipment, address, shipping modal |
 | 25 | Checkout | Buy now (single product, skips the cart) | Buyer | Design pending | Figma: buy now |
 | 26 | Checkout | Vouchers at checkout | Buyer | Design pending | Figma: voucher modal |
 | 27 | Checkout | Payment method selection | Buyer | Design pending | Figma: payment modal |
@@ -47,7 +47,7 @@ A user can be a buyer and a seller at the same time. Sellers can buy from other 
 | 29 | Checkout | Payment provider integration | Buyer | Parked (decide after main features) | None |
 | 30 | Orders | Order history and order status | Buyer | Design pending | Figma: order history |
 | 31 | Orders | Seller order management | Seller | Not started | Not in design yet |
-| 32 | Profile | View and edit profile, address | Buyer | Design pending | Not in design yet |
+| 32 | Profile | View and edit profile, address | Buyer | Backend built (no photo upload), design pending | Not in design yet |
 
 ## Build order
 

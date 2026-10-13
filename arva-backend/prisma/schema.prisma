@@ -8,21 +8,29 @@ datasource db {
 }
 
 model User {
-  id            Int        @id @default(autoincrement())
+  id            Int            @id @default(autoincrement())
   // Stored exactly as the user typed it, so the UI can show it back.
   username      String
+  // Display name. Register sets it to the username. The profile update changes it.
+  name          String
   // Lowercase copy of username. The unique index lives here, which makes
   // "Alice" and "alice" collide. Always set by the service, never by clients.
-  usernameLower String     @unique @map("username_lower")
+  usernameLower String         @unique @map("username_lower")
   // Stored trimmed and lowercase.
-  email         String     @unique
-  passwordHash  String     @map("password_hash")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  // 8 to 15 digits with an optional leading "+" (CHECK constraint in the migration).
+  phone         String?
+  // Not written yet. Photo upload comes later.
+  photoUrl      String?        @map("photo_url")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
   shops         Shop[]
   cartItems     CartItem[]
   reviews       Review[]
   wishlistItems WishlistItem[]
+  checkoutDraft CheckoutDraft?
+  address       UserAddress?
 
   @@map("users")
 }
@@ -68,27 +76,27 @@ model Shop {
 }
 
 model Product {
-  id           Int              @id @default(autoincrement())
-  slug         String           @unique
-  name         String
-  description  String           @default("")
-  categoryId   Int              @map("category_id")
-  category     Category         @relation(fields: [categoryId], references: [id])
-  shopId       Int              @map("shop_id")
-  shop         Shop             @relation(fields: [shopId], references: [id])
-  imageUrl     String           @map("image_url")
+  id            Int              @id @default(autoincrement())
+  slug          String           @unique
+  name          String
+  description   String           @default("")
+  categoryId    Int              @map("category_id")
+  category      Category         @relation(fields: [categoryId], references: [id])
+  shopId        Int              @map("shop_id")
+  shop          Shop             @relation(fields: [shopId], references: [id])
+  imageUrl      String           @map("image_url")
   // Rating in tenths: 34 means 3.4. An Int avoids Decimal objects and float rounding.
-  ratingTenths Int              @default(0) @map("rating_tenths")
+  ratingTenths  Int              @default(0) @map("rating_tenths")
   // Total ratings and written reviews. Stored (not counted) because review writing is not built yet.
-  ratingCount  Int              @default(0) @map("rating_count")
-  reviewCount  Int              @default(0) @map("review_count")
-  soldCount    Int              @default(0) @map("sold_count")
-  isActive     Boolean          @default(true) @map("is_active")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-  variants     ProductVariant[]
-  images       ProductImage[]
-  reviews      Review[]
+  ratingCount   Int              @default(0) @map("rating_count")
+  reviewCount   Int              @default(0) @map("review_count")
+  soldCount     Int              @default(0) @map("sold_count")
+  isActive      Boolean          @default(true) @map("is_active")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  variants      ProductVariant[]
+  images        ProductImage[]
+  reviews       Review[]
   wishlistItems WishlistItem[]
 
   @@index([categoryId])
@@ -150,6 +158,8 @@ model CartItem {
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
+  draftItems CheckoutDraftItem[]
+
   @@unique([userId, variantId])
   @@index([userId])
   @@map("cart_items")
@@ -200,4 +210,117 @@ model WishlistItem {
   @@unique([userId, productId])
   @@index([userId, addedAt])
   @@map("wishlist_items")
+}
+
+// Region reference data (public). Ids are fixed by the seed, not generated.
+model Province {
+  id            Int             @id
+  name          String          @unique
+  cities        City[]
+  drafts        CheckoutDraft[]
+  userAddresses UserAddress[]
+
+  @@map("provinces")
+}
+
+model City {
+  id            Int             @id
+  provinceId    Int             @map("province_id")
+  province      Province        @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  name          String
+  districts     District[]
+  drafts        CheckoutDraft[]
+  userAddresses UserAddress[]
+
+  @@unique([provinceId, name])
+  @@index([provinceId])
+  @@map("cities")
+}
+
+model District {
+  id            Int             @id
+  cityId        Int             @map("city_id")
+  city          City            @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  name          String
+  subDistricts  SubDistrict[]
+  drafts        CheckoutDraft[]
+  userAddresses UserAddress[]
+
+  @@unique([cityId, name])
+  @@index([cityId])
+  @@map("districts")
+}
+
+model SubDistrict {
+  id            Int             @id
+  districtId    Int             @map("district_id")
+  district      District        @relation(fields: [districtId], references: [id], onDelete: Restrict)
+  name          String
+  drafts        CheckoutDraft[]
+  userAddresses UserAddress[]
+
+  @@unique([districtId, name])
+  @@index([districtId])
+  @@map("sub_districts")
+}
+
+// One draft per user. It holds references to cart items, never copies of price or quantity.
+// Length and digit rules for the address columns are CHECK constraints in the migration SQL.
+model CheckoutDraft {
+  id                      Int                 @id @default(autoincrement())
+  userId                  Int                 @unique @map("user_id")
+  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addressLabel            String?             @map("address_label")
+  addressStreet           String?             @map("address_street")
+  recipientName           String?             @map("recipient_name")
+  phone                   String?
+  provinceId              Int?                @map("province_id")
+  province                Province?           @relation(fields: [provinceId], references: [id], onDelete: SetNull)
+  cityId                  Int?                @map("city_id")
+  city                    City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  districtId              Int?                @map("district_id")
+  district                District?           @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  subDistrictId           Int?                @map("sub_district_id")
+  subDistrict             SubDistrict?        @relation(fields: [subDistrictId], references: [id], onDelete: SetNull)
+  damageProtectionEnabled Boolean             @default(false) @map("damage_protection_enabled")
+  createdAt               DateTime            @default(now()) @map("created_at")
+  updatedAt               DateTime            @updatedAt @map("updated_at")
+  items                   CheckoutDraftItem[]
+
+  @@map("checkout_drafts")
+}
+
+model CheckoutDraftItem {
+  id         Int           @id @default(autoincrement())
+  draftId    Int           @map("draft_id")
+  draft      CheckoutDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  cartItemId Int           @map("cart_item_id")
+  // Removing the cart item removes its draft item.
+  cartItem   CartItem      @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, cartItemId])
+  @@index([cartItemId])
+  @@map("checkout_draft_items")
+}
+
+// One saved address per user. The unique userId makes "save" an upsert.
+// The street length and the 5 digit zip code are CHECK constraints in the migration.
+model UserAddress {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @unique @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  street        String
+  subDistrictId Int         @map("sub_district_id")
+  subDistrict   SubDistrict @relation(fields: [subDistrictId], references: [id], onDelete: Restrict)
+  districtId    Int         @map("district_id")
+  district      District    @relation(fields: [districtId], references: [id], onDelete: Restrict)
+  cityId        Int         @map("city_id")
+  city          City        @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  provinceId    Int         @map("province_id")
+  province      Province    @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  zipCode       String      @map("zip_code")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@map("user_addresses")
 }

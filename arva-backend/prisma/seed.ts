@@ -1,7 +1,8 @@
 // Loads the dummy catalog. Safe to run many times: every row is upserted by its unique key.
-// It does not create users (users are created through the API only).
+// It does not create users, drafts or addresses (users are created through the API only).
 import { PrismaClient } from '@prisma/client';
 import { banners, categories, products, shops } from './data/dummy-products.js';
+import { seedRegions } from './data/regions.js';
 import { IMAGES_PER_PRODUCT, productDetails } from './data/dummy-product-detail.js';
 
 const prisma = new PrismaClient();
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
   const shopIds = await seedShops();
   const counts = await seedProducts(categoryIds, shopIds);
   await seedBanners();
+  const regionCounts = await seedRegions(prisma);
 
   console.log('Seed finished:');
   console.log(`  categories: ${categories.length}`);
@@ -148,6 +150,10 @@ async function main(): Promise<void> {
   console.log(`  images:     ${counts.images}`);
   console.log(`  reviews:    ${counts.reviews}`);
   console.log(`  banners:    ${banners.length}`);
+  console.log(`  provinces:     ${regionCounts.provinces}`);
+  console.log(`  cities:        ${regionCounts.cities}`);
+  console.log(`  districts:     ${regionCounts.districts}`);
+  console.log(`  sub-districts: ${regionCounts.subDistricts}`);
 }
 
 main()

@@ -36,9 +36,9 @@ export class NotFoundError extends Error {
   }
 }
 
-export type StockErrorCode = 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK';
+export type StockErrorCode = 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'PRODUCT_UNAVAILABLE';
 
-// A stock rule was broken. Mapped to 409 with a machine-readable `code`.
+// A stock or availability rule was broken. Mapped to 409 with a machine-readable `code`.
 export class StockConflictError extends Error {
   constructor(
     public readonly code: StockErrorCode,
@@ -46,5 +46,14 @@ export class StockConflictError extends Error {
   ) {
     super(message);
     this.name = 'StockConflictError';
+  }
+}
+
+// The database refused a write because a unique index would be broken.
+// Repositories throw this, so services never see Prisma errors.
+export class UniqueViolationError extends Error {
+  constructor(public readonly field: 'username' | 'email') {
+    super(`Unique violation on ${field}`);
+    this.name = 'UniqueViolationError';
   }
 }

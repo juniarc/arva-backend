@@ -28,7 +28,8 @@ function findByEmail(email: string): Promise<UserRecord | null> {
 // is translated into the same ConflictError the service would have thrown.
 async function create(data: NewUser): Promise<UserRecord> {
   try {
-    return await prisma.user.create({ data });
+    // A new user's display name starts as their username. The profile update changes it.
+    return await prisma.user.create({ data: { ...data, name: data.username } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const target = String(error.meta?.target ?? '');

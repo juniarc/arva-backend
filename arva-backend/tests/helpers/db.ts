@@ -1,11 +1,18 @@
 import request from 'supertest';
 import type { Express } from 'express';
+import { seedRegions } from '../../prisma/data/regions.js';
 import { prisma } from '../../src/lib/prisma.js';
 
 export async function resetDatabase(): Promise<void> {
   await prisma.$transaction([
     prisma.cartItem.deleteMany(),
     prisma.wishlistItem.deleteMany(),
+    prisma.checkoutDraft.deleteMany(),
+    prisma.userAddress.deleteMany(),
+    prisma.subDistrict.deleteMany(),
+    prisma.district.deleteMany(),
+    prisma.city.deleteMany(),
+    prisma.province.deleteMany(),
     prisma.review.deleteMany(),
     prisma.productImage.deleteMany(),
     prisma.productVariant.deleteMany(),
@@ -276,4 +283,27 @@ export async function createWishlistRow(username: string, productId: number, add
     select: { id: true },
   });
   return item.id;
+}
+
+// Loads the same small region subset the seed loads (see prisma/data/regions.ts).
+export async function seedTestRegions(): Promise<void> {
+  await seedRegions(prisma);
+}
+
+export type RegionLevel = 'province' | 'city' | 'district' | 'subDistrict';
+
+// Looks up a region id by its name. Some names exist at two levels (for example "Menteng").
+export async function regionId(level: RegionLevel, name: string): Promise<number> {
+  const where = { name };
+  const select = { id: true };
+  switch (level) {
+    case 'province':
+      return (await prisma.province.findFirstOrThrow({ where, select })).id;
+    case 'city':
+      return (await prisma.city.findFirstOrThrow({ where, select })).id;
+    case 'district':
+      return (await prisma.district.findFirstOrThrow({ where, select })).id;
+    case 'subDistrict':
+      return (await prisma.subDistrict.findFirstOrThrow({ where, select })).id;
+  }
 }

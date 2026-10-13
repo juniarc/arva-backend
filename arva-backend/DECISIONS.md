@@ -148,3 +148,34 @@ Reason: wishlist feature. A unique constraint on (userId, productId) makes add i
 **Wishlist rows hold no price or stock snapshot. The product's current data is read when the list is returned.**
 Reason: a wishlist is a bookmark, not an offer. Items of inactive products are hidden from the list and count but not deleted, so they return if the product is activated again. `rating` is a number here, as in the product list (the product detail uses an object).
 
+**CONTRACT CHANGE: new tables for regions, checkout drafts and draft items, and new endpoints `POST /checkout`, `GET /checkout`, `PUT /checkout/address`, and four public `GET /regions/...` lists.**
+Reason: first part of checkout. A draft holds references to cart items, not copies, so price, quantity and stock always match the cart. Removing a cart item removes its draft item (cascade). The buyer can still reach the draft from the cart page, and the order task will read the cart again.
+
+**A new draft starts with an empty address.**
+Reason: the profile address is not built yet. When it exists, a new draft will copy it.
+
+**Draft creation checks stock and availability but does not reserve stock. It is checked again when the order is placed.**
+Reason: same rule as the cart. The draft row is reset with one upsert (so two parallel creates cannot hit the unique user id), and its items are replaced, in one transaction.
+
+**The address is complete only when all eight fields are set, and the draft response returns the whole address or null. The address is written in one UPDATE, so a partial address is never saved by the API.**
+Reason: the service decides, with no database trigger. CHECK constraints in the migration also guard the phone (digits, 8 to 15) and the text lengths.
+
+**Region ids come from the seed order, not from the database. Seeded regions are a small development subset.**
+Reason: upserting by id keeps the seed repeatable. Only append new entries to the end of the lists in `prisma/data/regions.ts`. The full Indonesian list is loaded later from a data source the project chooses.
+
+**In the draft response `shipping`, `voucher` and `paymentMethod` are always null, and the fee fields and the discount are 0. They are placeholders for the next checkout tasks.**
+Reason: the frontend can build against the final shape now.
+
+**CONTRACT CHANGE: users get `name`, `phone` and `photoUrl`; new table `user_addresses`; new endpoints `GET /profile`, `PUT /profile`, `PUT /profile/address`.**
+Reason: profile feature. `name` is required in the database. The migration fills it from the username for existing users, and register now saves `name = username` for new users (a change inside the user repository only; the register endpoint and its response are unchanged). Each user has at most one saved address (unique user id, saved with an upsert). `photoUrl` is a nullable column that nothing writes yet.
+
+**Profile username and email use the same uniqueness mechanism as register: the `usernameLower` unique index and the lowercase unique `email`. The profile update checks them and writes in one transaction, and turns a unique-index violation into the same 409.**
+Reason: two parallel updates can pass the pre-check, so the database index is the real guard. Username is checked first, so it wins when both are taken.
+
+**Known gap: changing the email takes effect immediately, with no verification step. Existing tokens keep working after a username change because requireAuth identifies the user by id and nothing uses the token's username claim.**
+
+**Phone format: the profile keeps an optional leading "+" (`^\+?[0-9]{8,15}$`), and the checkout address is digits only. The checkout copy step must strip the "+" using `toCheckoutPhone` in `lib/phone.ts`.**
+Reason: avoids changing the checkout rule. This is the one place to change if the rule changes (for example "+62812..." to "0812...").
+
+**Planned for the checkout backend (not built): a new draft copies the profile address. The draft needs a label and a recipient name that the profile does not store, so the label defaults to "Home", the recipient name to the profile name, and the phone to the profile phone. If the profile phone is null, checkout must ask for it. The profile address has a zip code that the checkout draft has no column for, so the draft needs one (or drops it) when the copy is built.**
+
