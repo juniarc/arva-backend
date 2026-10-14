@@ -2,6 +2,28 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { findSelectedCartItems, type SelectedCartItem } from './cart-draft.repository.js';
 
+// The voucher fields every voucher query needs (a function so it can be used above its definition).
+function voucherSelectFields() {
+  return {
+    id: true,
+    code: true,
+    title: true,
+    type: true,
+    value: true,
+    maxDiscount: true,
+    minSpend: true,
+    shopId: true,
+    startsAt: true,
+    endsAt: true,
+    usageLimit: true,
+    usedCount: true,
+    isActive: true,
+    shop: { select: { name: true } },
+  } satisfies Prisma.VoucherSelect;
+}
+
+export type VoucherRecord = Prisma.VoucherGetPayload<{ select: ReturnType<typeof voucherSelectFields> }>;
+
 // userId, the draft id and timestamps are never selected, so they cannot reach the API.
 const draftSelect = {
   addressLabel: true,
@@ -9,6 +31,11 @@ const draftSelect = {
   recipientName: true,
   phone: true,
   damageProtectionEnabled: true,
+  shippingOption: {
+    select: { id: true, name: true, price: true, minDays: true, maxDays: true, isActive: true, channelId: true, channel: { select: { name: true } } },
+  },
+  paymentMethod: { select: { id: true, name: true, isEnabled: true } },
+  voucher: { select: voucherSelectFields() },
   province: { select: { id: true, name: true } },
   city: { select: { id: true, name: true } },
   district: { select: { id: true, name: true } },
@@ -19,6 +46,7 @@ const draftSelect = {
       id: true,
       cartItem: {
         select: {
+          id: true,
           quantity: true,
           variant: {
             select: {
@@ -35,7 +63,7 @@ const draftSelect = {
                   name: true,
                   imageUrl: true,
                   isActive: true,
-                  shop: { select: { slug: true, name: true } },
+                  shop: { select: { id: true, slug: true, name: true, shippingChannels: { select: { shippingChannelId: true } } } },
                 },
               },
             },
@@ -70,7 +98,7 @@ export interface CheckoutTransaction {
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
-function readDraft(client: Client, userId: number): Promise<DraftRecord | null> {
+export function readDraft(client: Client, userId: number): Promise<DraftRecord | null> {
   return client.checkoutDraft.findUnique({ where: { userId }, select: draftSelect });
 }
 
@@ -95,6 +123,9 @@ function createTransaction(client: Prisma.TransactionClient): CheckoutTransactio
           districtId: null,
           subDistrictId: null,
           damageProtectionEnabled: false,
+          shippingOptionId: null,
+          paymentMethodId: null,
+          voucherId: null,
         },
         select: { id: true },
       });
@@ -139,3 +170,67 @@ async function draftExists(userId: number): Promise<boolean> {
 }
 
 export const checkoutRepository = { runInTransaction, findDraft, draftExists };
+
+// ---------- Shipping options and payment methods ----------
+
+export const shippingOptionSelect = {
+  id: true,
+  name: true,
+  price: true,
+  minDays: true,
+  maxDays: true,
+  isActive: true,
+  channelId: true,
+  channel: { select: { name: true } },
+} satisfies Prisma.ShippingOptionSelect;
+
+export type ShippingOptionRecord = Prisma.ShippingOptionGetPayload<{ select: typeof shippingOptionSelect }>;
+
+export const checkoutOptionsRepository = {
+  // Active options, cheapest first. `channelIds` null means every channel.
+  findActiveShippingOptions(channelIds: number[] | null): Promise<ShippingOptionRecord[]> {
+    return prisma.shippingOption.findMany({
+      where: { isActive: true, ...(channelIds === null ? {} : { channelId: { in: channelIds } }) },
+      orderBy: [{ price: 'asc' }, { id: 'asc' }],
+      select: shippingOptionSelect,
+    });
+  },
+
+  findPaymentMethods(): Promise<{ id: number; name: string; isEnabled: boolean }[]> {
+    return prisma.paymentMethod.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      select: { id: true, name: true, isEnabled: true },
+    });
+  },
+
+  // Returns false when the user has no draft.
+  async saveShippingOption(userId: number, shippingOptionId: number): Promise<boolean> {
+    const updated = await prisma.checkoutDraft.updateMany({ where: { userId }, data: { shippingOptionId } });
+    return updated.count > 0;
+  },
+
+  async saveDamageProtection(userId: number, enabled: boolean): Promise<boolean> {
+    const updated = await prisma.checkoutDraft.updateMany({ where: { userId }, data: { damageProtectionEnabled: enabled } });
+    return updated.count > 0;
+  },
+
+  async saveVoucher(userId: number, voucherId: number | null): Promise<boolean> {
+    const updated = await prisma.checkoutDraft.updateMany({ where: { userId }, data: { voucherId } });
+    return updated.count > 0;
+  },
+
+  // Active vouchers that could apply: platform vouchers and those of the given shops. The service
+  // checks dates, usage and minimum spend against the checkout.
+  findVoucherCandidates(shopIds: number[]): Promise<VoucherRecord[]> {
+    return prisma.voucher.findMany({
+      where: { isActive: true, OR: [{ shopId: null }, { shopId: { in: shopIds } }] },
+      orderBy: [{ id: 'asc' }],
+      select: voucherSelectFields(),
+    });
+  },
+
+  async savePaymentMethod(userId: number, paymentMethodId: number): Promise<boolean> {
+    const updated = await prisma.checkoutDraft.updateMany({ where: { userId }, data: { paymentMethodId } });
+    return updated.count > 0;
+  },
+};

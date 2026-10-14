@@ -1,4 +1,5 @@
 import { NotFoundError, ValidationError } from '../lib/errors.js';
+import { searchWords } from '../lib/search-words.js';
 import { toImageUrl } from '../lib/imageUrl.js';
 import { calculateDiscountPercent } from '../lib/money.js';
 import { comparePrice, isPriceSort } from '../lib/product-sort.js';
@@ -206,6 +207,7 @@ async function listProducts(query: ProductListQuery): Promise<ProductListRespons
     maxPrice: query.maxPrice,
     minRatingTenths: query.minRating === undefined ? undefined : query.minRating * 10,
     city: query.city,
+    searchWords: query.q === undefined ? undefined : searchWords(query.q),
   };
   const skip = (query.page - 1) * query.limit;
 

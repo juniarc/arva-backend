@@ -60,6 +60,8 @@ export interface ProductFilter {
   minRatingTenths?: number;
   // Exact, case-sensitive match against the shop city.
   city?: string;
+  // Search words: every word must be in the name, description, tags, category or shop name.
+  searchWords?: string[];
 }
 
 // Only active products that have at least one variant are ever returned.
@@ -94,6 +96,19 @@ function buildWhere(filter: ProductFilter): Prisma.ProductWhereInput {
   }
   if (filter.city !== undefined) {
     conditions.push({ shop: { city: filter.city } });
+  }
+  for (const word of filter.searchWords ?? []) {
+    const contains = { contains: word, mode: 'insensitive' as const };
+    conditions.push({
+      OR: [
+        { name: contains },
+        { description: contains },
+        // Tags are stored in lower case, so a whole-word tag match is exact.
+        { tags: { has: word } },
+        { category: { name: contains } },
+        { shop: { name: contains } },
+      ],
+    });
   }
   return { AND: conditions };
 }

@@ -5,8 +5,10 @@ import {
   createShopSchema,
   shopParamsSchema,
   shopProductsQuerySchema,
+  shopSearchQuerySchema,
   updateOwnerShopSchema,
 } from '../schemas/shop.schema.js';
+import { shopSearchService } from '../services/shop-search.service.js';
 import { shopService } from '../services/shop.service.js';
 
 // These responses depend on who is asking (isOwner, ownerDetails, manage), so no cache may
@@ -55,4 +57,10 @@ async function updateOwnerShop(req: Request, res: Response): Promise<void> {
   res.status(200).json({ shop: await shopService.updateOwnerShop(getUserId(req), input) });
 }
 
-export const shopController = { getBySlug, getProducts, getOwnerShop, createShop, updateOwnerShop };
+// GET /shops?q=: public search by shop name or city.
+async function search(req: Request, res: Response): Promise<void> {
+  const query = parseQuery(shopSearchQuerySchema, req);
+  res.status(200).json(await shopSearchService.searchShops(query));
+}
+
+export const shopController = { getBySlug, getProducts, getOwnerShop, createShop, updateOwnerShop, search };

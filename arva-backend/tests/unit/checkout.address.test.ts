@@ -150,14 +150,14 @@ describe('draft items in the response', () => {
     expect(response.items.map((item) => item.id)).toEqual(['4', '3', '2', '1']);
   });
 
-  it('has placeholder fields, no damage protection fee and no internal fields', () => {
+  it('has no choices yet, shows the damage protection price without charging it, and no internal fields', () => {
     const response = toDraftResponse(buildDraft([{ id: 1 }]));
 
     expect(response).toMatchObject({
       shipping: null,
       voucher: null,
       paymentMethod: null,
-      damageProtection: { enabled: false, fee: 0 },
+      damageProtection: { enabled: false, fee: 1000 },
       summary: { shippingSubtotal: 0, buyerServiceFee: 0, handlingFee: 0, damageProtectionFee: 0, discount: 0 },
     });
     expect(JSON.stringify(response)).not.toMatch(/userId|isActive|createdAt|updatedAt|draftId/);

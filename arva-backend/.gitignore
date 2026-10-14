@@ -4,3 +4,5 @@ dist/
 .env.*
 !.env.example
 *.log
+# Uploaded product photos (local storage).
+uploads/

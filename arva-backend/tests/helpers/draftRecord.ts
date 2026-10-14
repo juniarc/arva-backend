@@ -7,6 +7,10 @@ interface ItemInput {
   stock?: number;
   isActive?: boolean;
   shopName?: string;
+  shopSlug?: string;
+  shopId?: number;
+  // The shop's shipping channel ids.
+  channelIds?: number[];
   productName?: string;
   productId?: number;
   position?: number;
@@ -33,6 +37,9 @@ export function buildDraft(items: ItemInput[], overrides: Partial<DraftRecord> =
     recipientName: null,
     phone: null,
     damageProtectionEnabled: false,
+    shippingOption: null,
+    paymentMethod: null,
+    voucher: null,
     province: null,
     city: null,
     district: null,
@@ -40,6 +47,7 @@ export function buildDraft(items: ItemInput[], overrides: Partial<DraftRecord> =
     items: items.map((item) => ({
       id: item.id,
       cartItem: {
+        id: item.id * 100,
         quantity: item.quantity ?? 1,
         variant: {
           id: item.id * 10,
@@ -54,7 +62,12 @@ export function buildDraft(items: ItemInput[], overrides: Partial<DraftRecord> =
             name: item.productName ?? `P${item.id}`,
             imageUrl: '/images/dummy/x.jpg',
             isActive: item.isActive ?? true,
-            shop: { slug: 'shop', name: item.shopName ?? 'Shop' },
+            shop: {
+              id: item.shopId ?? 1,
+              slug: item.shopSlug ?? 'shop',
+              name: item.shopName ?? 'Shop',
+              shippingChannels: (item.channelIds ?? []).map((shippingChannelId) => ({ shippingChannelId })),
+            },
           },
         },
       },

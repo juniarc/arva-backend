@@ -34,12 +34,11 @@ export interface SeedPaymentMethod {
   sortOrder: number;
 }
 
+// Every shop offers the same three methods (see migration 20261022000000_checkout_shipping_payment).
 export const paymentMethods: SeedPaymentMethod[] = [
-  { code: 'BANK_TRANSFER', name: 'Bank Transfer', description: 'Pay by transfer to a virtual account.', isEnabled: true, sortOrder: 1 },
-  { code: 'E_WALLET', name: 'E-Wallet', description: 'Pay with your e-wallet balance.', isEnabled: true, sortOrder: 2 },
-  { code: 'COD', name: 'Cash on Delivery', description: 'Pay the courier when the order arrives.', isEnabled: true, sortOrder: 3 },
-  // Edge case: shown in lists but cannot be chosen.
-  { code: 'CREDIT_CARD', name: 'Credit Card', description: 'Coming soon.', isEnabled: false, sortOrder: 4 },
+  { code: 'MANDIRI_VA', name: 'Mandiri Virtual Account', description: 'Pay by transfer to a Mandiri virtual account.', isEnabled: true, sortOrder: 1 },
+  { code: 'BCA_VA', name: 'BCA Virtual Account', description: 'Pay by transfer to a BCA virtual account.', isEnabled: true, sortOrder: 2 },
+  { code: 'QRIS', name: 'QRIS', description: 'Scan the QR code with any QRIS-ready banking or e-wallet app.', isEnabled: true, sortOrder: 3 },
 ];
 
 // ---------- Vouchers ----------

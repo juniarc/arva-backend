@@ -8,6 +8,7 @@ export function createShopRouter(): Router {
   const router = Router();
 
   router.use(createPublicReadLimiter());
+  router.get('/', shopController.search);
   router.post('/', requireAuth, createShopWriteLimiter(), shopController.createShop);
   // The order matters. "/me" must come before "/:slug", or Express would read "me" as a shop slug.
   router.get('/me', requireAuth, shopController.getOwnerShop);

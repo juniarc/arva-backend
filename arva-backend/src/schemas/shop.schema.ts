@@ -28,6 +28,21 @@ export const shopProductsQuerySchema = z
 
 export type ShopProductsQuery = z.infer<typeof shopProductsQuerySchema>;
 
+// GET /shops?q=: shops whose name or city has every word.
+export const shopSearchQuerySchema = z
+  .object({
+    q: z.string({ error: 'Search is required.' }).trim().min(1, 'Search must not be empty.').max(100, 'Search must be at most 100 characters.'),
+    limit: z.coerce
+      .number({ error: 'Limit must be a number.' })
+      .int('Limit must be a whole number.')
+      .min(1, 'Limit must be at least 1.')
+      .max(12, 'Limit must be at most 12.')
+      .default(6),
+  })
+  .strict();
+
+export type ShopSearchQuery = z.infer<typeof shopSearchQuerySchema>;
+
 const numericId = (label: string) =>
   z.string({ error: `${label} is required.` }).regex(/^\d{1,9}$/, `${label} must be a numeric string.`);
 

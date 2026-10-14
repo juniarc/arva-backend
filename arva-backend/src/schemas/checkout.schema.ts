@@ -44,3 +44,9 @@ export const addressSchema = z
   .strict();
 
 export type AddressInput = z.infer<typeof addressSchema>;
+
+export const shippingChoiceSchema = z.object({ optionId: numericId('Shipping option id') }).strict();
+export const paymentMethodChoiceSchema = z.object({ methodId: numericId('Payment method id') }).strict();
+export const damageProtectionSchema = z.object({ enabled: z.boolean({ error: 'enabled must be true or false.' }) }).strict();
+// null removes the voucher.
+export const voucherChoiceSchema = z.object({ voucherId: numericId('Voucher id').nullable() }).strict();

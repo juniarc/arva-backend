@@ -25,6 +25,9 @@ export const productSlugParamsSchema = z.object({
 // Strict: unknown query keys are rejected with 400.
 export const productListQuerySchema = z
   .object({
+    // Search words. A product matches when every word is in its name, description, tags,
+    // category name or shop name (any letter case).
+    q: z.string({ error: 'Search must be text.' }).trim().min(1, 'Search must not be empty.').max(100, 'Search must be at most 100 characters.').optional(),
     category: z.string().trim().min(1).max(100).optional(),
     shop: z.string().trim().min(1).max(100).optional(),
     exclude: productId.optional(),

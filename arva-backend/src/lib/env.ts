@@ -18,6 +18,11 @@ const envSchema = z
     // such as /images/dummy/x.jpg are returned as full URLs. An empty value counts as not set.
     IMAGE_BASE_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
     CORS_ORIGIN: z.url('CORS_ORIGIN must be a full URL, for example http://localhost:3000'),
+    // Where uploaded product photos are written, relative to the working directory.
+    UPLOAD_DIR: z.string().min(1).default('uploads'),
+    // Optional. The public address of this API, used to build the URLs of uploaded photos
+    // (for example http://localhost:4000). Defaults to http://localhost:PORT.
+    UPLOAD_BASE_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.JWT_SECRET === EXAMPLE_JWT_SECRET) {

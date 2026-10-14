@@ -104,6 +104,21 @@ export function createShopWriteLimiter(): RequestHandler {
   });
 }
 
+// Product listing limit: 10 uploads per minute for each logged-in user. Each request can carry
+// up to 5 photos, so this is lower than the other write limits. Must run after requireAuth.
+export function createProductWriteLimiter(): RequestHandler {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => String(req.user?.id ?? ipKeyGenerator(req.ip ?? '')),
+    handler: (_req, res) => {
+      res.status(429).json({ message: 'Too many requests. Please try again later.' });
+    },
+  });
+}
+
 function readUsername(req: Request): string {
   const body: unknown = req.body;
   if (typeof body === 'object' && body !== null && 'username' in body) {

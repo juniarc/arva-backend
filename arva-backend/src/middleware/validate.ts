@@ -4,7 +4,7 @@ import { ValidationError, type FieldErrors } from '../lib/errors.js';
 
 // Validates data with a zod schema and returns typed data.
 // On failure it throws a ValidationError with one message per field.
-function parseWith<T extends z.ZodType>(schema: T, data: unknown): z.infer<T> {
+export function parseWith<T extends z.ZodType>(schema: T, data: unknown): z.infer<T> {
   const result = schema.safeParse(data);
   if (result.success) {
     return result.data;

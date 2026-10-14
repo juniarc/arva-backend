@@ -36,10 +36,10 @@ describe('seeded shipping options', () => {
 });
 
 describe('seeded payment methods', () => {
-  it('have unique codes and sort orders, and one disabled method', () => {
-    expect(new Set(paymentMethods.map((m) => m.code)).size).toBe(paymentMethods.length);
+  it('are the three methods every shop offers, all enabled, with unique sort orders', () => {
+    expect(paymentMethods.map((m) => m.name)).toEqual(['Mandiri Virtual Account', 'BCA Virtual Account', 'QRIS']);
+    expect(paymentMethods.every((m) => m.isEnabled)).toBe(true);
     expect(new Set(paymentMethods.map((m) => m.sortOrder)).size).toBe(paymentMethods.length);
-    expect(paymentMethods.filter((m) => !m.isEnabled)).toHaveLength(1);
   });
 });
 

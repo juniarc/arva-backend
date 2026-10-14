@@ -31,6 +31,7 @@ model User {
   wishlistItems WishlistItem[]
   checkoutDraft CheckoutDraft?
   address       UserAddress?
+  orders        Order[]
 
   @@map("users")
 }
@@ -93,34 +94,48 @@ model Shop {
   products         Product[]
   shippingChannels ShopShippingChannel[]
   vouchers         Voucher[]
+  orderItems       OrderItem[]
 
   @@index([city], map: "shops_city_idx")
   @@map("shops")
 }
 
 model Product {
-  id            Int              @id @default(autoincrement())
-  slug          String           @unique
-  name          String
-  description   String           @default("")
-  categoryId    Int              @map("category_id")
-  category      Category         @relation(fields: [categoryId], references: [id])
-  shopId        Int              @map("shop_id")
-  shop          Shop             @relation(fields: [shopId], references: [id])
-  imageUrl      String           @map("image_url")
+  id              Int              @id @default(autoincrement())
+  slug            String           @unique
+  name            String
+  description     String           @default("")
+  categoryId      Int              @map("category_id")
+  category        Category         @relation(fields: [categoryId], references: [id])
+  shopId          Int              @map("shop_id")
+  shop            Shop             @relation(fields: [shopId], references: [id])
+  imageUrl        String           @map("image_url")
   // Rating in tenths: 34 means 3.4. An Int avoids Decimal objects and float rounding.
-  ratingTenths  Int              @default(0) @map("rating_tenths")
+  ratingTenths    Int              @default(0) @map("rating_tenths")
   // Total ratings and written reviews. Stored (not counted) because review writing is not built yet.
-  ratingCount   Int              @default(0) @map("rating_count")
-  reviewCount   Int              @default(0) @map("review_count")
-  soldCount     Int              @default(0) @map("sold_count")
-  isActive      Boolean          @default(true) @map("is_active")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
-  variants      ProductVariant[]
-  images        ProductImage[]
-  reviews       Review[]
-  wishlistItems WishlistItem[]
+  ratingCount     Int              @default(0) @map("rating_count")
+  reviewCount     Int              @default(0) @map("review_count")
+  soldCount       Int              @default(0) @map("sold_count")
+  isActive        Boolean          @default(true) @map("is_active")
+  // Seller-defined labels, lower case and unique per product. Up to 10.
+  tags            String[]         @default([])
+  // The percent the seller took off when listing the product (1 to 90). The discounted prices
+  // themselves are on the variants (price and originalPrice). Null when not discounted.
+  discountPercent Int?             @map("discount_percent")
+  // Package size for shipping. Null for products listed before these were asked.
+  weightGrams     Int?             @map("weight_grams")
+  lengthCm        Int?             @map("length_cm")
+  widthCm         Int?             @map("width_cm")
+  heightCm        Int?             @map("height_cm")
+  // Integer IDR the seller charges for shipping.
+  shippingFee     Int?             @map("shipping_fee")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  variants        ProductVariant[]
+  images          ProductImage[]
+  reviews         Review[]
+  wishlistItems   WishlistItem[]
+  orderItems      OrderItem[]
 
   @@index([categoryId])
   @@index([shopId])
@@ -132,20 +147,21 @@ model Product {
 }
 
 model ProductVariant {
-  id            Int        @id @default(autoincrement())
-  productId     Int        @map("product_id")
-  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id            Int         @id @default(autoincrement())
+  productId     Int         @map("product_id")
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   label         String
   unit          String
   // Integer IDR.
   price         Int
   // Set only when the variant is discounted.
-  originalPrice Int?       @map("original_price")
+  originalPrice Int?        @map("original_price")
   // A CHECK constraint (stock >= 0) is added in the migration SQL.
   stock         Int
   // Order on screen. The variant with the lowest position is the default selection.
-  position      Int        @default(0)
+  position      Int         @default(0)
   cartItems     CartItem[]
+  orderItems    OrderItem[]
 
   @@unique([productId, label])
   @@index([productId])
@@ -312,6 +328,14 @@ model CheckoutDraft {
   subDistrictId           String?             @map("sub_district_id")
   subDistrict             SubDistrict?        @relation(fields: [subDistrictId], references: [id], onDelete: SetNull)
   damageProtectionEnabled Boolean             @default(false) @map("damage_protection_enabled")
+  // The chosen shipping option and payment method. Null until the buyer chooses; set back to
+  // null when the option or method is removed.
+  shippingOptionId        Int?                @map("shipping_option_id")
+  shippingOption          ShippingOption?     @relation(fields: [shippingOptionId], references: [id], onDelete: SetNull)
+  paymentMethodId         Int?                @map("payment_method_id")
+  paymentMethod           PaymentMethod?      @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  voucherId               Int?                @map("voucher_id")
+  voucher                 Voucher?            @relation(fields: [voucherId], references: [id], onDelete: SetNull)
   createdAt               DateTime            @default(now()) @map("created_at")
   updatedAt               DateTime            @updatedAt @map("updated_at")
   items                   CheckoutDraftItem[]
@@ -385,6 +409,7 @@ model ShippingOption {
   minDays   Int             @map("min_days")
   maxDays   Int             @map("max_days")
   isActive  Boolean         @default(true) @map("is_active")
+  drafts    CheckoutDraft[]
 
   @@unique([channelId, name])
   @@map("shipping_options")
@@ -402,21 +427,22 @@ enum VoucherType {
 //   FREE_SHIPPING: the most IDR of shipping the voucher covers
 // shopId null means a platform voucher. Rules Prisma cannot express are CHECK constraints in the migration.
 model Voucher {
-  id          Int         @id @default(autoincrement())
-  code        String      @unique
+  id          Int             @id @default(autoincrement())
+  code        String          @unique
   title       String
   type        VoucherType
   value       Int
-  maxDiscount Int?        @map("max_discount")
-  minSpend    Int         @default(0) @map("min_spend")
-  shopId      Int?        @map("shop_id")
-  shop        Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  startsAt    DateTime    @map("starts_at")
-  endsAt      DateTime    @map("ends_at")
+  maxDiscount Int?            @map("max_discount")
+  minSpend    Int             @default(0) @map("min_spend")
+  shopId      Int?            @map("shop_id")
+  shop        Shop?           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  startsAt    DateTime        @map("starts_at")
+  endsAt      DateTime        @map("ends_at")
   // Null means unlimited.
-  usageLimit  Int?        @map("usage_limit")
-  usedCount   Int         @default(0) @map("used_count")
-  isActive    Boolean     @default(true) @map("is_active")
+  usageLimit  Int?            @map("usage_limit")
+  usedCount   Int             @default(0) @map("used_count")
+  isActive    Boolean         @default(true) @map("is_active")
+  drafts      CheckoutDraft[]
 
   @@index([shopId])
   @@map("vouchers")
@@ -424,12 +450,87 @@ model Voucher {
 
 // PROVISIONAL, like ShippingOption. No payment provider is connected (see the project decisions).
 model PaymentMethod {
-  id          Int     @id @default(autoincrement())
-  code        String  @unique
+  id          Int             @id @default(autoincrement())
+  code        String          @unique
   name        String
-  description String  @default("")
-  isEnabled   Boolean @default(true) @map("is_enabled")
-  sortOrder   Int     @map("sort_order")
+  description String          @default("")
+  isEnabled   Boolean         @default(true) @map("is_enabled")
+  sortOrder   Int             @map("sort_order")
+  drafts      CheckoutDraft[]
 
   @@map("payment_methods")
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+// A placed checkout. No payment provider is connected yet, so every order starts AWAITING_PAYMENT.
+// The address, shipping, payment and amounts are copied in when the order is placed, so the order
+// stays the same when the draft, products or prices change later. Money is integer IDR.
+model Order {
+  id                  Int         @id @default(autoincrement())
+  // Shown to the buyer, for example "ORD-261014-7KQ2MZ".
+  code                String      @unique
+  userId              Int         @map("user_id")
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              OrderStatus @default(AWAITING_PAYMENT)
+  addressLabel        String      @map("address_label")
+  addressStreet       String      @map("address_street")
+  recipientName       String      @map("recipient_name")
+  phone               String
+  provinceName        String      @map("province_name")
+  cityName            String      @map("city_name")
+  districtName        String      @map("district_name")
+  subDistrictName     String      @map("sub_district_name")
+  shippingLabel       String      @map("shipping_label")
+  // One shipment per shop: shippingSubtotal = shippingPrice x shipmentCount.
+  shippingPrice       Int         @map("shipping_price")
+  shipmentCount       Int         @map("shipment_count")
+  paymentMethodName   String      @map("payment_method_name")
+  voucherCode         String?     @map("voucher_code")
+  productSubtotal     Int         @map("product_subtotal")
+  shippingSubtotal    Int         @map("shipping_subtotal")
+  buyerServiceFee     Int         @map("buyer_service_fee")
+  handlingFee         Int         @map("handling_fee")
+  damageProtectionFee Int         @map("damage_protection_fee")
+  discount            Int
+  total               Int
+  // When the (simulated) payment went through. No payment provider is connected: Pay Now pays at once.
+  paidAt              DateTime?   @map("paid_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  items               OrderItem[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+// One line of an order. The names and prices are copied, and the links are kept only while the
+// product, variant and shop exist (a deleted product leaves the line as it was).
+model OrderItem {
+  id           Int             @id @default(autoincrement())
+  orderId      Int             @map("order_id")
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    Int?            @map("product_id")
+  product      Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId    Int?            @map("variant_id")
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  shopId       Int?            @map("shop_id")
+  shop         Shop?           @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  shopName     String          @map("shop_name")
+  productName  String          @map("product_name")
+  variantLabel String          @map("variant_label")
+  unit         String
+  price        Int
+  quantity     Int
+  lineTotal    Int             @map("line_total")
+  // The product photo when the order was placed.
+  imageUrl     String          @default("") @map("image_url")
+
+  @@index([orderId])
+  @@map("order_items")
 }

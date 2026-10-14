@@ -1,7 +1,9 @@
 import { compareCartLines } from '../lib/cart-order.js';
 import { calculateCheckoutTotal } from '../lib/checkout-total.js';
 import { toImageUrl } from '../lib/imageUrl.js';
+import { damageProtectionFee } from '../lib/damage-protection.js';
 import { calculateLineTotal } from '../lib/money.js';
+import { voucherDiscount, type CheckoutMoney, type VoucherRule } from '../lib/voucher-discount.js';
 import type { DraftRecord } from '../repositories/checkout.repository.js';
 
 export interface DraftItemResponse {
@@ -38,10 +40,9 @@ export interface DraftResponse {
   unavailableItemCount: number;
   address: DraftAddressResponse | null;
   damageProtection: { enabled: boolean; fee: number };
-  // Placeholders. The next checkout tasks fill them in.
-  shipping: null;
-  voucher: null;
-  paymentMethod: null;
+  shipping: DraftShippingResponse | null;
+  voucher: { id: string; title: string; code: string; discountAmount: number } | null;
+  paymentMethod: { id: string; label: string } | null;
   summary: {
     productSubtotal: number;
     shippingSubtotal: number;
@@ -51,6 +52,93 @@ export interface DraftResponse {
     discount: number;
     total: number;
   };
+}
+
+export interface DraftShippingResponse {
+  id: string;
+  label: string;
+  estimate: string;
+  // Integer IDR for one shipment. Each shop in the draft ships separately.
+  price: number;
+}
+
+interface ShippingOptionLike {
+  id: number;
+  name: string;
+  price: number;
+  minDays: number;
+  maxDays: number;
+  channel: { name: string };
+}
+
+// "JNE Regular", "Estimated arrival 3-5 days".
+export function toShippingResponse(option: ShippingOptionLike): DraftShippingResponse {
+  const { minDays, maxDays } = option;
+  const days = minDays === maxDays ? `${maxDays}` : `${minDays}-${maxDays}`;
+  const estimate = maxDays <= 1 && minDays === 0 ? 'Estimated arrival within 1 day' : `Estimated arrival ${days} ${maxDays === 1 ? 'day' : 'days'}`;
+  return { id: String(option.id), label: `${option.channel.name} ${option.name}`, estimate, price: option.price };
+}
+
+// The shipping channels every shop in the draft supports. A shop that has not set its channels yet
+// does not restrict the choice. null means every channel (no shop has set any).
+export function allowedChannelIds(record: DraftRecord): number[] | null {
+  const shops = new Map<string, number[]>();
+  for (const item of record.items) {
+    const { shop, isActive } = item.cartItem.variant.product;
+    if (!isActive) continue;
+    shops.set(shop.slug, shop.shippingChannels.map((channel) => channel.shippingChannelId));
+  }
+  const restricting = [...shops.values()].filter((channels) => channels.length > 0);
+  if (restricting.length === 0) return null;
+  return restricting.reduce((common, channels) => common.filter((id) => channels.includes(id)));
+}
+
+// The money a voucher is checked against: the product subtotal, each shop's part of it, and the
+// chosen shipping price (null when none is chosen, or when the chosen one cannot be used).
+export function checkoutMoney(record: DraftRecord): CheckoutMoney {
+  const shopSubtotals = new Map<number, number>();
+  let productSubtotal = 0;
+  for (const item of record.items) {
+    const { variant, quantity } = item.cartItem;
+    if (!variant.product.isActive) continue;
+    const line = calculateLineTotal(variant.price, quantity);
+    productSubtotal += line;
+    const shopId = variant.product.shop.id;
+    shopSubtotals.set(shopId, (shopSubtotals.get(shopId) ?? 0) + line);
+  }
+  const option = usableShippingOption(record);
+  return { productSubtotal, shopSubtotals, shippingPrice: option ? option.price : null, shipmentCount: shipmentCount(record) };
+}
+
+// The chosen option counts only while it is still active and every shop can use it.
+export function usableShippingOption(record: DraftRecord): DraftRecord['shippingOption'] {
+  const channels = allowedChannelIds(record);
+  const option = record.shippingOption;
+  return option !== null && option.isActive && (channels === null || channels.includes(option.channelId)) ? option : null;
+}
+
+export function toVoucherRule(voucher: NonNullable<DraftRecord['voucher']>): VoucherRule {
+  return {
+    type: voucher.type,
+    value: voucher.value,
+    maxDiscount: voucher.maxDiscount,
+    minSpend: voucher.minSpend,
+    shopId: voucher.shopId,
+    startsAt: voucher.startsAt,
+    endsAt: voucher.endsAt,
+    usageLimit: voucher.usageLimit,
+    usedCount: voucher.usedCount,
+    isActive: voucher.isActive,
+  };
+}
+
+// One shipment per shop: the number of different shops among the items that can be bought.
+export function shipmentCount(record: DraftRecord): number {
+  return new Set(
+    record.items
+      .filter((item) => item.cartItem.variant.product.isActive)
+      .map((item) => item.cartItem.variant.product.shop.slug),
+  ).size;
 }
 
 function toRegionRef(region: { id: string; name: string }): RegionRef {
@@ -88,7 +176,7 @@ export function toAddress(record: DraftRecord): DraftAddressResponse | null {
 // Prices, quantities and stock are read from the cart item and variant now.
 // Items of inactive products are left out of the items and the subtotal, and counted
 // in unavailableItemCount so the frontend can tell the user.
-export function toDraftResponse(record: DraftRecord): DraftResponse {
+export function toDraftResponse(record: DraftRecord, now: Date = new Date()): DraftResponse {
   const available = record.items.filter((item) => item.cartItem.variant.product.isActive);
 
   const items = [...available]
@@ -138,24 +226,37 @@ export function toDraftResponse(record: DraftRecord): DraftResponse {
     (sum, item) => sum + calculateLineTotal(item.variant.price, item.quantity),
     0,
   );
-  // Shipping, fees and discount are 0 until the next checkout tasks add them.
+  const option = usableShippingOption(record);
+  const shipping = option ? toShippingResponse(option) : null;
+  const method = record.paymentMethod;
+  const paymentMethod = method && method.isEnabled ? { id: String(method.id), label: method.name } : null;
+
+  // A chosen voucher counts only while it can still be used on this checkout.
+  const chosen = record.voucher;
+  const discount = chosen ? voucherDiscount(toVoucherRule(chosen), checkoutMoney(record), now) : null;
+  const voucher =
+    chosen && discount !== null ? { id: String(chosen.id), title: chosen.title, code: chosen.code, discountAmount: discount } : null;
+
+  // The buyer service fee and the handling fee are not set yet, so they are 0.
+  const protectionFee = damageProtectionFee(productSubtotal);
   const amounts = {
     productSubtotal,
-    shippingSubtotal: 0,
+    shippingSubtotal: shipping ? shipping.price * shipmentCount(record) : 0,
     buyerServiceFee: 0,
     handlingFee: 0,
-    damageProtectionFee: 0,
-    discount: 0,
+    damageProtectionFee: record.damageProtectionEnabled ? protectionFee : 0,
+    discount: voucher?.discountAmount ?? 0,
   };
 
   return {
     items,
     unavailableItemCount: record.items.length - available.length,
     address: toAddress(record),
-    damageProtection: { enabled: record.damageProtectionEnabled, fee: amounts.damageProtectionFee },
-    shipping: null,
-    voucher: null,
-    paymentMethod: null,
+    // The fee is shown before the buyer turns protection on.
+    damageProtection: { enabled: record.damageProtectionEnabled, fee: protectionFee },
+    shipping,
+    voucher,
+    paymentMethod,
     summary: { ...amounts, total: calculateCheckoutTotal(amounts) },
   };
 }
