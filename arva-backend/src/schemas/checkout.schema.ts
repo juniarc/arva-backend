@@ -15,7 +15,6 @@ export const createDraftSchema = z
   })
   .strict();
 
-export type CreateDraftInput = z.infer<typeof createDraftSchema>;
 
 const regionRef = (label: string) =>
   z.object({ id: regionIdRule(`${label} id`) }, { error: `${label} is required.` }).strict();

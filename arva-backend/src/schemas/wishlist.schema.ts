@@ -19,4 +19,3 @@ export const removeWishlistItemsSchema = z
   })
   .strict();
 
-export type RemoveWishlistItemsInput = z.infer<typeof removeWishlistItemsSchema>;

@@ -47,4 +47,3 @@ export const deleteCartItemsSchema = z
   })
   .strict();
 
-export type DeleteCartItemsInput = z.infer<typeof deleteCartItemsSchema>;
